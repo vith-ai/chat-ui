@@ -21,6 +21,10 @@ import {
   Table,
   FileText,
   X,
+  Shield,
+  HelpCircle,
+  Plus,
+  Minus,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -38,6 +42,25 @@ interface DemoTask {
   status: 'pending' | 'in_progress' | 'completed'
 }
 
+interface DemoApproval {
+  id: string
+  title: string
+  description: string
+  status: 'pending' | 'approved' | 'rejected'
+}
+
+interface DemoQuestion {
+  id: string
+  question: string
+  options: string[]
+}
+
+interface DemoDiff {
+  filename: string
+  additions: string[]
+  deletions: string[]
+}
+
 interface DemoMessage {
   id: string
   role: 'user' | 'assistant'
@@ -46,6 +69,9 @@ interface DemoMessage {
   toolCalls?: DemoToolCall[]
   tasks?: DemoTask[]
   artifact?: Artifact
+  approval?: DemoApproval
+  question?: DemoQuestion
+  diff?: DemoDiff
 }
 
 interface Artifact {
@@ -56,10 +82,21 @@ interface Artifact {
   language?: string
 }
 
-// Demo responses
-const demoResponses: Record<string, { content: string; thinking?: string; toolCalls?: DemoMessage['toolCalls']; tasks?: DemoMessage['tasks']; artifact?: Artifact }> = {
+// Demo responses - showcasing all features
+interface DemoResponse {
+  content: string
+  thinking?: string
+  toolCalls?: DemoToolCall[]
+  tasks?: DemoTask[]
+  artifact?: Artifact
+  approval?: DemoApproval
+  question?: DemoQuestion
+  diff?: DemoDiff
+}
+
+const demoResponses: Record<string, DemoResponse> = {
   default: {
-    content: "I can help you with that! What would you like me to do?",
+    content: "I can help you with that! Try one of the demo commands to see the UI components in action.",
   },
   analyze: {
     content: "I've analyzed the data and created a visualization showing the revenue trends over time.",
@@ -142,8 +179,82 @@ export function Button({
 }`,
     },
   },
+  deploy: {
+    content: "I'm ready to deploy. This will push to production and run database migrations.",
+    thinking: "Checking deployment prerequisites... The build passed, tests are green, and the migration scripts look safe. I should ask for approval before proceeding with production deployment.",
+    toolCalls: [
+      { id: 't1', name: 'run_tests', input: { suite: 'all' }, status: 'complete' },
+      { id: 't2', name: 'build', input: { target: 'production' }, status: 'complete' },
+    ],
+    approval: {
+      id: 'deploy-approval',
+      title: 'Deploy to Production',
+      description: 'This will deploy v2.1.0 to production and run 3 pending migrations.',
+      status: 'pending',
+    },
+  },
+  refactor: {
+    content: "I've refactored the authentication module. Here are the changes:",
+    thinking: "The current auth implementation has some code duplication. I'll extract the common logic into a shared utility and update the imports.",
+    toolCalls: [
+      { id: 't1', name: 'read_file', input: { path: 'src/auth/login.ts' }, status: 'complete' },
+      { id: 't2', name: 'edit_file', input: { path: 'src/auth/utils.ts' }, status: 'complete' },
+    ],
+    diff: {
+      filename: 'src/auth/login.ts',
+      additions: [
+        "import { validateToken, refreshSession } from './utils'",
+        "",
+        "export async function login(credentials: Credentials) {",
+        "  const token = await authenticate(credentials)",
+        "  return validateToken(token)",
+        "}",
+      ],
+      deletions: [
+        "import jwt from 'jsonwebtoken'",
+        "",
+        "export async function login(credentials: Credentials) {",
+        "  const token = await authenticate(credentials)",
+        "  // Manual token validation (duplicated)",
+        "  if (!jwt.verify(token, SECRET)) throw new Error('Invalid')",
+        "  return token",
+        "}",
+      ],
+    },
+    artifact: {
+      id: 'refactor1',
+      type: 'code',
+      title: 'utils.ts (new)',
+      language: 'typescript',
+      content: `import jwt from 'jsonwebtoken'
+
+export function validateToken(token: string): boolean {
+  return jwt.verify(token, process.env.JWT_SECRET!)
+}
+
+export async function refreshSession(token: string) {
+  const decoded = jwt.decode(token)
+  return jwt.sign(decoded, process.env.JWT_SECRET!, {
+    expiresIn: '7d'
+  })
+}`,
+    },
+  },
+  question: {
+    content: "I found multiple configuration options. Which approach would you prefer?",
+    thinking: "There are several valid ways to set up the database connection. I should ask the user about their preferences before proceeding.",
+    question: {
+      id: 'db-question',
+      question: 'How would you like to configure the database connection?',
+      options: [
+        'Environment variables (.env file)',
+        'Config file (config.json)',
+        'Connection string in code',
+      ],
+    },
+  },
   help: {
-    content: "I'm an AI assistant that can help you with coding, data analysis, writing, and more. Try asking me to:\n\n• **Analyze data** - \"analyze this dataset\"\n• **Write code** - \"create a button component\"\n• **Explain concepts** - \"how does React work?\"\n\nI'll show my thinking process and any tools I use along the way.",
+    content: "Welcome! This demo showcases all the UI components. Try these commands:\n\n• **\"analyze data\"** → Tool calls, tasks, thinking, artifacts\n• **\"write code\"** → Code generation with artifact panel\n• **\"deploy\"** → Approval flow for sensitive actions\n• **\"refactor\"** → Diff view showing code changes\n• **\"configure\"** → Question cards for user input\n\nEach response demonstrates different agentic UI patterns.",
   },
 }
 
@@ -319,6 +430,116 @@ function TodoBox({ tasks }: { tasks: DemoTask[] }) {
   )
 }
 
+function ApprovalCard({ approval, onApprove, onReject }: { approval: DemoApproval; onApprove: () => void; onReject: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mx-4 mb-2 rounded-lg border border-amber-500/30 bg-amber-500/5 overflow-hidden"
+    >
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-amber-500/20">
+        <Shield className="w-4 h-4 text-amber-400" />
+        <span className="text-sm font-medium text-amber-400">Approval Required</span>
+      </div>
+      <div className="p-3">
+        <p className="text-sm font-medium mb-1">{approval.title}</p>
+        <p className="text-xs text-zinc-400 mb-3">{approval.description}</p>
+        {approval.status === 'pending' ? (
+          <div className="flex gap-2">
+            <button
+              onClick={onApprove}
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 transition-colors"
+            >
+              <CheckCircle className="w-4 h-4" />
+              Approve
+            </button>
+            <button
+              onClick={onReject}
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-zinc-700 text-white text-sm font-medium hover:bg-zinc-600 transition-colors"
+            >
+              <X className="w-4 h-4" />
+              Reject
+            </button>
+          </div>
+        ) : (
+          <div className={clsx(
+            'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium',
+            approval.status === 'approved' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
+          )}>
+            {approval.status === 'approved' ? (
+              <><CheckCircle className="w-4 h-4" /> Approved</>
+            ) : (
+              <><X className="w-4 h-4" /> Rejected</>
+            )}
+          </div>
+        )}
+      </div>
+    </motion.div>
+  )
+}
+
+function QuestionCard({ question, onAnswer }: { question: DemoQuestion; onAnswer: (answer: string) => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mx-4 mb-2 rounded-lg border border-blue-500/30 bg-blue-500/5 overflow-hidden"
+    >
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-blue-500/20">
+        <HelpCircle className="w-4 h-4 text-blue-400" />
+        <span className="text-sm font-medium text-blue-400">Input Needed</span>
+      </div>
+      <div className="p-3">
+        <p className="text-sm font-medium mb-3">{question.question}</p>
+        <div className="space-y-2">
+          {question.options.map((option, i) => (
+            <button
+              key={i}
+              onClick={() => onAnswer(option)}
+              className="w-full text-left px-3 py-2 rounded-lg bg-surface-elevated border border-surface-border text-sm hover:border-blue-500/50 hover:bg-blue-500/10 transition-colors"
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+function DiffView({ diff }: { diff: DemoDiff }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mx-4 mb-2 rounded-lg border border-surface-border bg-surface-elevated overflow-hidden"
+    >
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-surface-border">
+        <FileCode className="w-4 h-4 text-accent" />
+        <span className="text-sm font-mono">{diff.filename}</span>
+      </div>
+      <div className="font-mono text-xs overflow-x-auto">
+        {diff.deletions.map((line, i) => (
+          <div key={`del-${i}`} className="flex bg-red-500/10">
+            <span className="w-8 text-center text-red-400/50 border-r border-surface-border py-0.5">
+              <Minus className="w-3 h-3 inline" />
+            </span>
+            <span className="flex-1 text-red-400 px-2 py-0.5">{line || ' '}</span>
+          </div>
+        ))}
+        {diff.additions.map((line, i) => (
+          <div key={`add-${i}`} className="flex bg-emerald-500/10">
+            <span className="w-8 text-center text-emerald-400/50 border-r border-surface-border py-0.5">
+              <Plus className="w-3 h-3 inline" />
+            </span>
+            <span className="flex-1 text-emerald-400 px-2 py-0.5">{line || ' '}</span>
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  )
+}
+
 function ArtifactPanel({ artifact, onClose }: { artifact: Artifact | null; onClose: () => void }) {
   const [copied, setCopied] = useState(false)
 
@@ -390,7 +611,7 @@ function ChatDemo() {
     {
       id: '0',
       role: 'assistant',
-      content: "Hi! I'm a demo of @vith-ai/chat-ui. Try asking me to:\n\n• **Analyze data** - \"analyze this dataset\"\n• **Write code** - \"create a button component\"\n• **Get help** - \"what can you do?\"",
+      content: "Welcome! This demo showcases all the agentic UI components. Try these:\n\n• **\"analyze data\"** → Tool calls, tasks, thinking, charts\n• **\"write code\"** → Code generation with artifacts\n• **\"deploy\"** → Approval flow for sensitive actions\n• **\"refactor\"** → Diff view showing code changes\n• **\"configure\"** → Question cards for user input\n• **\"help\"** → See all available demos",
     },
   ])
   const [input, setInput] = useState('')
@@ -406,6 +627,55 @@ function ChatDemo() {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  const handleApproval = (messageId: string, approved: boolean) => {
+    setMessages(prev => prev.map(msg => {
+      if (msg.id === messageId && msg.approval) {
+        return {
+          ...msg,
+          approval: { ...msg.approval, status: approved ? 'approved' : 'rejected' }
+        }
+      }
+      return msg
+    }))
+    // Add follow-up message
+    const followUp: DemoMessage = {
+      id: Date.now().toString(),
+      role: 'assistant',
+      content: approved
+        ? "Deployment approved! Starting deployment to production...\n\n✓ Building application\n✓ Running migrations\n✓ Deploying to production\n\n🚀 Successfully deployed v2.1.0"
+        : "Deployment cancelled. No changes were made to production.",
+    }
+    setTimeout(() => setMessages(prev => [...prev, followUp]), 500)
+  }
+
+  const handleQuestion = (messageId: string, answer: string) => {
+    // Remove the question from the message
+    setMessages(prev => prev.map(msg => {
+      if (msg.id === messageId) {
+        return { ...msg, question: undefined }
+      }
+      return msg
+    }))
+    // Add user answer and follow-up
+    const userAnswer: DemoMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: answer,
+    }
+    const followUp: DemoMessage = {
+      id: (Date.now() + 1).toString(),
+      role: 'assistant',
+      content: `Got it! I'll configure the database using **${answer}**.\n\nConfiguration has been set up successfully. You can now connect to your database.`,
+      toolCalls: [
+        { id: 't1', name: 'write_config', input: { method: answer }, status: 'complete' },
+      ],
+    }
+    setTimeout(() => {
+      setMessages(prev => [...prev, userAnswer])
+      setTimeout(() => setMessages(prev => [...prev, followUp]), 800)
+    }, 300)
+  }
 
   const handleSend = async () => {
     if (!input.trim() || isProcessing) return
@@ -423,11 +693,17 @@ function ChatDemo() {
 
     // Determine response based on input
     let responseKey = 'default'
-    if (userInput.includes('analyz') || userInput.includes('data') || userInput.includes('visual')) {
+    if (userInput.includes('analyz') || userInput.includes('data') || userInput.includes('visual') || userInput.includes('chart')) {
       responseKey = 'analyze'
-    } else if (userInput.includes('code') || userInput.includes('component') || userInput.includes('button') || userInput.includes('function')) {
+    } else if (userInput.includes('code') || userInput.includes('component') || userInput.includes('button') || userInput.includes('function') || userInput.includes('write')) {
       responseKey = 'code'
-    } else if (userInput.includes('help') || userInput.includes('what can')) {
+    } else if (userInput.includes('deploy') || userInput.includes('production') || userInput.includes('release')) {
+      responseKey = 'deploy'
+    } else if (userInput.includes('refactor') || userInput.includes('diff') || userInput.includes('change')) {
+      responseKey = 'refactor'
+    } else if (userInput.includes('config') || userInput.includes('question') || userInput.includes('setup') || userInput.includes('database')) {
+      responseKey = 'question'
+    } else if (userInput.includes('help') || userInput.includes('what can') || userInput.includes('demo')) {
       responseKey = 'help'
     }
 
@@ -473,10 +749,12 @@ function ChatDemo() {
         lastMsg.thinking = response.thinking
         lastMsg.tasks = response.tasks
         lastMsg.artifact = response.artifact
+        lastMsg.approval = response.approval
+        lastMsg.diff = response.diff
         return [...updated]
       })
     } else {
-      // Simple response
+      // Simple response (with possible question)
       await new Promise(resolve => setTimeout(resolve, 1000))
       const assistantMessage: DemoMessage = {
         id: (Date.now() + 1).toString(),
@@ -484,6 +762,7 @@ function ChatDemo() {
         content: response.content,
         thinking: response.thinking,
         artifact: response.artifact,
+        question: response.question,
       }
       setMessages(prev => [...prev, assistantMessage])
     }
@@ -525,6 +804,20 @@ function ChatDemo() {
                 </div>
               )}
               {message.tasks && <TodoBox tasks={message.tasks} />}
+              {message.diff && <DiffView diff={message.diff} />}
+              {message.approval && (
+                <ApprovalCard
+                  approval={message.approval}
+                  onApprove={() => handleApproval(message.id, true)}
+                  onReject={() => handleApproval(message.id, false)}
+                />
+              )}
+              {message.question && (
+                <QuestionCard
+                  question={message.question}
+                  onAnswer={(answer) => handleQuestion(message.id, answer)}
+                />
+              )}
             </div>
           ))}
 
@@ -545,7 +838,7 @@ function ChatDemo() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-              placeholder="Try: analyze this dataset, create a button component..."
+              placeholder="Try: analyze data, write code, deploy, refactor, configure..."
               disabled={isProcessing}
               className="flex-1 px-4 py-3 rounded-xl border border-surface-border bg-surface-elevated text-sm placeholder:text-zinc-600 focus:outline-none focus:border-accent transition-colors disabled:opacity-50"
             />
