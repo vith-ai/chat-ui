@@ -96,7 +96,7 @@ interface DemoResponse {
 
 const demoResponses: Record<string, DemoResponse> = {
   default: {
-    content: "I can help you with that! Try one of the demo commands to see the UI components in action.",
+    content: "This demo isn't connected to a live AI model — it's a showcase of the UI components.\n\nTo see the components in action, try one of these:\n\n• **\"analyze data\"** → Tool calls, tasks, thinking, charts\n• **\"write code\"** → Code generation with artifacts\n• **\"deploy\"** → Approval flow\n• **\"refactor\"** → Diff view\n• **\"configure\"** → Question cards\n\nWant to connect it to a real model? Check out the **Docs** to integrate with Claude, OpenAI, Ollama, or any LLM.",
   },
   analyze: {
     content: "I've analyzed the data and created a visualization showing the revenue trends over time.",
