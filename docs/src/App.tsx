@@ -495,10 +495,17 @@ function ChatDemo() {
     setIsProcessing(false)
   }
 
+  // Configurable panel ratio (default 40% chat / 60% artifact like Vith)
+  const chatRatio = 40
+  const artifactRatio = 60
+
   return (
     <div className="flex-1 flex min-h-0">
       {/* Chat */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div
+        className="flex flex-col min-w-0"
+        style={{ flex: `${chatRatio} 0 0%` }}
+      >
         <div className="flex-1 overflow-y-auto">
           {messages.map(message => (
             <div key={message.id}>
@@ -563,7 +570,10 @@ function ChatDemo() {
       </div>
 
       {/* Artifact Panel */}
-      <div className="w-80 border-l border-surface-border bg-surface-elevated hidden lg:block">
+      <div
+        className="border-l border-surface-border bg-surface-elevated hidden lg:block"
+        style={{ flex: `${artifactRatio} 0 0%` }}
+      >
         <ArtifactPanel artifact={currentArtifact} onClose={() => setCurrentArtifact(null)} />
       </div>
     </div>
@@ -1009,6 +1019,39 @@ function CustomizationSection() {
   assistantAvatar={<img src="/bot.png" className="w-full h-full rounded-full" />}
   userAvatar={<User className="w-5 h-5" />}
 />`} />
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Layout & Panel Ratios</h2>
+        <p className="text-sm text-zinc-400 mb-3">
+          Configure the chat/artifact panel split ratio. Default is 40/60 (40% chat, 60% artifact).
+        </p>
+        <CodeBlock code={`<ChatContainer
+  layout={{
+    chatRatio: 40,      // Chat panel width (%)
+    artifactRatio: 60,  // Artifact panel width (%)
+    minChatWidth: 280,  // Minimum chat width (px)
+    minArtifactWidth: 300, // Minimum artifact width (px)
+  }}
+  showArtifactPanel={true}  // Toggle artifact panel visibility
+/>`} />
+        <p className="text-sm text-zinc-400 mt-3">
+          Common configurations:
+        </p>
+        <div className="grid gap-2 text-sm mt-2">
+          <div className="flex items-center gap-3 p-2 rounded-lg bg-surface-elevated border border-surface-border">
+            <span className="font-mono text-accent">40/60</span>
+            <span className="text-zinc-500">— Default (like Vith)</span>
+          </div>
+          <div className="flex items-center gap-3 p-2 rounded-lg bg-surface-elevated border border-surface-border">
+            <span className="font-mono text-accent">50/50</span>
+            <span className="text-zinc-500">— Equal split</span>
+          </div>
+          <div className="flex items-center gap-3 p-2 rounded-lg bg-surface-elevated border border-surface-border">
+            <span className="font-mono text-accent">30/70</span>
+            <span className="text-zinc-500">— Code-focused</span>
+          </div>
+        </div>
       </div>
     </div>
   )
