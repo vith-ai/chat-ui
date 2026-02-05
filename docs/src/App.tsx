@@ -2,9 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import {
   MessageSquare,
-  Cpu,
   Zap,
-  Code2,
   CheckCircle,
   Loader2,
   Send,
@@ -27,8 +25,18 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 
+// Types for demo
+interface DemoMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  thinking?: string
+  toolCalls?: Array<{ id: string; name: string; input: Record<string, unknown>; status: 'complete' }>
+  tasks?: Array<{ id: string; label: string; status: 'pending' | 'in_progress' | 'completed' }>
+}
+
 // Simulated chat data for the demo
-const demoConversation = [
+const demoConversation: DemoMessage[] = [
   {
     id: '1',
     role: 'user' as const,
@@ -260,7 +268,7 @@ function DemoTodoBox({ tasks }: { tasks: Array<{ id: string; label: string; stat
 }
 
 function InteractiveDemo() {
-  const [messages, setMessages] = useState(demoConversation)
+  const [messages, setMessages] = useState<DemoMessage[]>(demoConversation)
   const [input, setInput] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [thinkingExpanded, setThinkingExpanded] = useState(true)
@@ -277,9 +285,9 @@ function InteractiveDemo() {
   const handleSend = async () => {
     if (!input.trim() || isProcessing) return
 
-    const userMessage = {
+    const userMessage: DemoMessage = {
       id: Date.now().toString(),
-      role: 'user' as const,
+      role: 'user',
       content: input,
     }
 
@@ -290,12 +298,12 @@ function InteractiveDemo() {
     // Simulate AI response
     await new Promise(resolve => setTimeout(resolve, 1500))
 
-    const assistantMessage = {
+    const assistantMessage: DemoMessage = {
       id: (Date.now() + 1).toString(),
-      role: 'assistant' as const,
+      role: 'assistant',
       content: "I've processed your request. The analysis is complete and the visualization has been generated successfully!",
       toolCalls: [
-        { id: 't3', name: 'generate_chart', input: { type: 'line', data: 'revenue_data' }, status: 'complete' as const },
+        { id: 't3', name: 'generate_chart', input: { type: 'line', data: 'revenue_data' }, status: 'complete' },
       ],
     }
 
