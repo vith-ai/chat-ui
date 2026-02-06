@@ -449,11 +449,15 @@ registry.register({
   ),
 })
 
-// Register spreadsheet renderer (use any library you prefer)
+// Register spreadsheet renderer
+// Example with @univerjs/presets (npm install @univerjs/presets)
+import { UniverSheet } from '@univerjs/presets'
+import '@univerjs/presets/lib/styles/preset-sheets-core.css'
+
 registry.register({
   types: ['spreadsheet', 'csv'],
   render: (artifact) => (
-    <YourSpreadsheetComponent data={parseCSV(artifact.content)} />
+    <UniverSheet data={parseCSV(artifact.content)} />
   ),
 })
 
@@ -482,15 +486,17 @@ const artifact = createArtifact(content, {
 
 The library provides artifact type detection and a registry system, but **does not include renderers**. You register your own renderers using any libraries you prefer:
 
-| Artifact Type | Example Libraries | Purpose |
-|---------------|-------------------|---------|
-| `code` | `shiki`, `prism-react-renderer` | Syntax highlighting |
-| `markdown` | `react-markdown` | Rich markdown |
-| `spreadsheet`, `csv` | Any grid library | Tabular data |
+| Artifact Type | Recommended Libraries | Purpose |
+|---------------|----------------------|---------|
+| `code` | `shiki` (recommended), `prism-react-renderer` | Syntax highlighting |
+| `markdown` | `react-markdown` + `remark-gfm` | Rich markdown |
+| `spreadsheet`, `csv` | `@univerjs/presets`, `ag-grid-react`, or custom | Tabular data |
 | `pdf` | `react-pdf` | PDF viewing |
 | `image` | Native `<img>` | Image display |
 | `html` | `iframe` or sanitized render | HTML content |
 | `custom` | Your implementation | Anything else |
+
+> **Note**: The [live demo](https://chat-ui.vith.ai) uses `shiki` for code highlighting and a custom spreadsheet component. See the demo source for implementation examples.
 
 ## Permission System
 
@@ -694,12 +700,15 @@ import type {
 npm install @aws-sdk/client-bedrock-runtime
 npm install @aws-sdk/client-bedrock  # For listBedrockModels()
 
-# Syntax highlighting (choose one)
-npm install shiki                    # Recommended
-npm install prism-react-renderer     # Alternative
+# Syntax highlighting (recommended)
+npm install shiki
 
 # Rich markdown
 npm install react-markdown remark-gfm
+
+# Spreadsheets (choose one)
+npm install @univerjs/presets        # Full-featured Excel-like
+npm install ag-grid-react ag-grid-community  # Enterprise grid
 
 # PDF viewing
 npm install react-pdf
