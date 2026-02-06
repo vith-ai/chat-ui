@@ -1,4 +1,5 @@
 import { defineConfig } from 'tsup'
+import { copyFileSync } from 'fs'
 
 export default defineConfig({
   entry: {
@@ -21,4 +22,8 @@ export default defineConfig({
     '@aws-sdk/client-bedrock',
   ],
   treeshake: true,
+  onSuccess: async () => {
+    // Copy the CSS file to dist
+    copyFileSync('src/styles.css', 'dist/styles.css')
+  },
 })

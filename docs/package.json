@@ -11,6 +11,7 @@
   "dependencies": {
     "@univerjs/preset-sheets-core": "^0.15.4",
     "@univerjs/presets": "^0.15.4",
+    "@vith-ai/chat-ui": "file:..",
     "clsx": "^2.1.0",
     "lucide-react": "^0.312.0",
     "motion": "^11.15.0",
