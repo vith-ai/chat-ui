@@ -102,14 +102,29 @@ const groqAdapter = createOpenAIAdapter({
 
 ### AWS Bedrock
 
+> **Note**: Requires `@aws-sdk/client-bedrock-runtime`. This adapter is designed for **server-side (Node.js) use only** - AWS credentials should not be exposed in browser code.
+
+```bash
+npm install @aws-sdk/client-bedrock-runtime
+```
+
 ```tsx
-import { createBedrockAdapter } from '@vith-ai/chat-ui/adapters/bedrock'
+import { createBedrockAdapter, listBedrockModels } from '@vith-ai/chat-ui/adapters/bedrock'
 
 const adapter = createBedrockAdapter({
   region: 'us-east-1',
   model: 'anthropic.claude-3-sonnet-20240229-v1:0',
-  // Uses AWS SDK credentials from environment
+  // Uses AWS SDK default credential chain (env vars, IAM role, etc.)
+  // Or provide explicit credentials:
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+  enableThinking: true,  // Enable extended thinking for Claude models
 })
+
+// Helper: List available foundation models (requires @aws-sdk/client-bedrock)
+const models = await listBedrockModels('us-east-1')
 ```
 
 ### OpenRouter
@@ -126,11 +141,22 @@ const adapter = createOpenRouterAdapter({
 ### Ollama (Local)
 
 ```tsx
-import { createOllamaAdapter } from '@vith-ai/chat-ui/adapters/ollama'
+import { createOllamaAdapter, listOllamaModels, pullOllamaModel } from '@vith-ai/chat-ui/adapters/ollama'
 
 const adapter = createOllamaAdapter({
   model: 'llama3',
   baseUrl: 'http://localhost:11434',  // Default Ollama URL
+  numCtx: 4096,      // Context window size
+  temperature: 0.7,
+  keepAlive: '5m',   // Keep model in memory
+})
+
+// Helper: List available models
+const models = await listOllamaModels()
+
+// Helper: Pull a model with progress
+await pullOllamaModel('llama3', undefined, (progress) => {
+  console.log(`Download: ${(progress * 100).toFixed(1)}%`)
 })
 ```
 
@@ -201,12 +227,8 @@ The main container that combines all chat elements:
   assistantAvatar={<BotIcon />}
   userAvatar={<UserIcon />}
   welcomeMessage={<WelcomeScreen />}
-
-  // Optional - layout
-  layout={{
-    chatRatio: 40,      // Chat panel width (%)
-    artifactRatio: 60,  // Artifact panel width (%)
-  }}
+  placeholder="Type a message..."
+  className="custom-class"
 
   // Optional - theming
   theme={{
@@ -229,7 +251,59 @@ import {
   ApprovalCard,     // Permission request UI
   DiffView,         // Code diff visualization
   QuestionCard,     // Multiple choice questions
+  ChatContainer,    // Full chat UI (also exported at top level)
 } from '@vith-ai/chat-ui'
+```
+
+#### Component Props
+
+```tsx
+// ThinkingBox - collapsible reasoning display
+<ThinkingBox
+  thinking={text}
+  isStreaming={true}       // Show streaming indicator
+  defaultCollapsed={false}
+  label="Thinking..."      // Custom header label
+/>
+
+// ToolCallCard - tool execution display
+<ToolCallCard
+  toolCall={toolCall}
+  icon={<CustomIcon />}
+  renderInput={(input) => <CustomInput data={input} />}
+  renderOutput={(output) => <CustomOutput data={output} />}
+/>
+
+// TodoBox - task list
+<TodoBox
+  tasks={tasks}
+  title="Progress"
+  showCompleted={true}
+/>
+
+// ApprovalCard - permission requests
+<ApprovalCard
+  request={request}
+  onApprove={() => {}}
+  onDeny={() => {}}
+  disabled={false}
+/>
+
+// DiffView - file change display
+<DiffView
+  change={fileChange}
+  onApprove={() => {}}
+  onReject={() => {}}
+  showActions={true}
+  maxHeight={400}
+/>
+
+// QuestionCard - interactive questions
+<QuestionCard
+  question={question}
+  onAnswer={(answer) => {}}  // string | string[] for multiSelect
+  disabled={false}
+/>
 ```
 
 ## Conversation Management
@@ -237,12 +311,20 @@ import {
 Manage multiple conversations with built-in persistence:
 
 ```tsx
-import { useConversations, useChat } from '@vith-ai/chat-ui'
+import {
+  useConversations,
+  useChat,
+  createLocalStorageStore,
+  createMemoryStore,
+} from '@vith-ai/chat-ui'
 
 function ChatApp() {
   const conversations = useConversations({
-    // Uses localStorage by default
-    // Pass custom store for database persistence
+    // Built-in stores:
+    store: createLocalStorageStore('my-chats'),  // localStorage (default)
+    // store: createMemoryStore(),               // In-memory (SSR/testing)
+    autoTitle: true,        // Auto-generate titles from first message
+    maxTitleLength: 50,
   })
 
   const chat = useChat({
@@ -574,6 +656,22 @@ import type {
   ToolRegistry,
   PermissionConfig,
   PermissionLevel,
+
+  // Hook types
+  UseChatOptions,
+  UseChatReturn,
+  UseConversationsOptions,
+  UseConversationsReturn,
+
+  // Component props (for extending components)
+  MessageBubbleProps,
+  ThinkingBoxProps,
+  ToolCallCardProps,
+  TodoBoxProps,
+  ApprovalCardProps,
+  DiffViewProps,
+  QuestionCardProps,
+  ChatContainerProps,
 } from '@vith-ai/chat-ui'
 ```
 
@@ -591,6 +689,10 @@ import type {
 ### Optional (install separately)
 
 ```bash
+# AWS Bedrock adapter (server-side only)
+npm install @aws-sdk/client-bedrock-runtime
+npm install @aws-sdk/client-bedrock  # For listBedrockModels()
+
 # Syntax highlighting (choose one)
 npm install shiki                    # Recommended
 npm install prism-react-renderer     # Alternative
