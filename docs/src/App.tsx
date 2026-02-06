@@ -21,6 +21,9 @@ import {
   Send,
   Square,
   Loader2,
+  MessageSquare,
+  Trash2,
+  ChevronDown,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -146,8 +149,8 @@ export function Button({
         'rounded-lg font-medium transition-colors',
         {
           'bg-purple-500 text-white hover:bg-purple-600': variant === 'primary',
-          'bg-zinc-800 text-white hover:bg-zinc-700': variant === 'secondary',
-          'text-zinc-400 hover:text-white': variant === 'ghost',
+          'bg-surface-elevated text-white hover:bg-surface-border': variant === 'secondary',
+          'text-[color:var(--chat-text-secondary)] hover:text-[color:var(--chat-text)]': variant === 'ghost',
           'px-3 py-1.5 text-sm': size === 'sm',
           'px-4 py-2 text-base': size === 'md',
           'px-6 py-3 text-lg': size === 'lg',
@@ -393,25 +396,25 @@ function SpreadsheetViewer({ data }: { data: { headers: string[]; rows: (string 
   }
 
   return (
-    <div className="w-full h-full overflow-auto bg-[#1a1a24] rounded-lg border border-zinc-700">
+    <div className="w-full h-full overflow-auto rounded-lg border border-surface-border" style={{ background: 'var(--surface)' }}>
       {/* Toolbar */}
-      <div className="flex items-center gap-1 px-2 py-1.5 bg-zinc-800/50 border-b border-zinc-700">
+      <div className="flex items-center gap-1 px-2 py-1.5 bg-surface-elevated/50 border-b border-surface-border">
         <div className="flex items-center gap-0.5">
           {['B', 'I', 'U'].map(btn => (
-            <button key={btn} className="w-7 h-7 flex items-center justify-center text-xs font-semibold text-zinc-400 hover:bg-zinc-700 rounded">
+            <button key={btn} className="w-7 h-7 flex items-center justify-center text-xs font-semibold text-[color:var(--chat-text-secondary)] hover:bg-surface-border rounded">
               {btn}
             </button>
           ))}
         </div>
-        <div className="w-px h-5 bg-zinc-700 mx-1" />
+        <div className="w-px h-5 bg-surface-border mx-1" />
         <div className="flex items-center gap-0.5">
           {['$', '%', ','].map(btn => (
-            <button key={btn} className="w-7 h-7 flex items-center justify-center text-xs text-zinc-400 hover:bg-zinc-700 rounded">
+            <button key={btn} className="w-7 h-7 flex items-center justify-center text-xs text-[color:var(--chat-text-secondary)] hover:bg-surface-border rounded">
               {btn}
             </button>
           ))}
         </div>
-        <div className="ml-auto text-xs text-zinc-500">Financial Model</div>
+        <div className="ml-auto text-xs text-[color:var(--chat-text-secondary)]">Financial Model</div>
       </div>
       {/* Spreadsheet Grid */}
       <div className="overflow-auto">
@@ -419,18 +422,18 @@ function SpreadsheetViewer({ data }: { data: { headers: string[]; rows: (string 
           <thead>
             <tr>
               {/* Row number header */}
-              <th className="w-10 min-w-[40px] bg-zinc-800 border-r border-b border-zinc-700 text-zinc-500 text-xs p-1"></th>
+              <th className="w-10 min-w-[40px] bg-surface-elevated border-r border-b border-surface-border text-[color:var(--chat-text-secondary)] text-xs p-1"></th>
               {/* Column headers (A, B, C...) */}
               {data.headers.map((_, i) => (
-                <th key={i} className="min-w-[100px] bg-zinc-800 border-r border-b border-zinc-700 text-zinc-400 text-xs font-normal p-1">
+                <th key={i} className="min-w-[100px] bg-surface-elevated border-r border-b border-surface-border text-[color:var(--chat-text-secondary)] text-xs font-normal p-1">
                   {String.fromCharCode(65 + i)}
                 </th>
               ))}
             </tr>
             <tr>
-              <th className="bg-zinc-800 border-r border-b border-zinc-700 text-zinc-500 text-xs p-1">1</th>
+              <th className="bg-surface-elevated border-r border-b border-surface-border text-[color:var(--chat-text-secondary)] text-xs p-1">1</th>
               {data.headers.map((header, i) => (
-                <th key={i} className="bg-accent/10 border-r border-b border-zinc-700 text-accent font-semibold p-2 text-left">
+                <th key={i} className="bg-accent/10 border-r border-b border-surface-border text-accent font-semibold p-2 text-left">
                   {header}
                 </th>
               ))}
@@ -441,15 +444,15 @@ function SpreadsheetViewer({ data }: { data: { headers: string[]; rows: (string 
               const isTotal = row[0] === 'Total'
               return (
                 <tr key={rowIdx} className={isTotal ? 'bg-accent/5' : ''}>
-                  <td className="bg-zinc-800 border-r border-b border-zinc-700 text-zinc-500 text-xs p-1 text-center">
+                  <td className="bg-surface-elevated border-r border-b border-surface-border text-[color:var(--chat-text-secondary)] text-xs p-1 text-center">
                     {rowIdx + 2}
                   </td>
                   {row.map((cell, colIdx) => (
                     <td
                       key={colIdx}
                       className={clsx(
-                        'border-r border-b border-zinc-700/50 p-2',
-                        colIdx === 0 ? 'text-zinc-300' : 'text-zinc-400 font-mono text-right',
+                        'border-r border-b border-surface-border/50 p-2',
+                        colIdx === 0 ? 'text-[color:var(--chat-text)]' : 'text-[color:var(--chat-text-secondary)] font-mono text-right',
                         isTotal && 'font-semibold'
                       )}
                     >
@@ -463,9 +466,9 @@ function SpreadsheetViewer({ data }: { data: { headers: string[]; rows: (string 
         </table>
       </div>
       {/* Formula bar simulation */}
-      <div className="flex items-center gap-2 px-2 py-1.5 bg-zinc-800/30 border-t border-zinc-700 text-xs">
-        <span className="text-zinc-500">fx</span>
-        <span className="text-zinc-400 font-mono">=SUM(B2:B7)</span>
+      <div className="flex items-center gap-2 px-2 py-1.5 bg-surface-elevated/30 border-t border-surface-border text-xs">
+        <span className="text-[color:var(--chat-text-secondary)]">fx</span>
+        <span className="text-[color:var(--chat-text-secondary)] font-mono">=SUM(B2:B7)</span>
       </div>
     </div>
   )
@@ -493,24 +496,24 @@ function CodeViewer({ code, language = 'typescript' }: { code: string; language?
 
   if (isLoading) {
     return (
-      <div className="bg-[#0d1117] rounded-lg p-4 animate-pulse">
-        <div className="h-4 bg-zinc-800 rounded w-3/4 mb-2"></div>
-        <div className="h-4 bg-zinc-800 rounded w-1/2 mb-2"></div>
-        <div className="h-4 bg-zinc-800 rounded w-2/3"></div>
+      <div className="bg-surface rounded-lg p-4 animate-pulse">
+        <div className="h-4 bg-surface-elevated rounded w-3/4 mb-2"></div>
+        <div className="h-4 bg-surface-elevated rounded w-1/2 mb-2"></div>
+        <div className="h-4 bg-surface-elevated rounded w-2/3"></div>
       </div>
     )
   }
 
   return (
-    <div className="bg-[#0d1117] rounded-lg overflow-hidden border border-zinc-800">
+    <div className="bg-surface rounded-lg overflow-hidden border border-surface-border">
       {/* Editor-like header */}
-      <div className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border-b border-zinc-800">
+      <div className="flex items-center gap-2 px-4 py-2 bg-surface border-b border-surface-border">
         <div className="flex gap-1.5">
           <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
           <div className="w-3 h-3 rounded-full bg-yellow-500/80"></div>
           <div className="w-3 h-3 rounded-full bg-green-500/80"></div>
         </div>
-        <span className="text-xs text-zinc-500 ml-2 font-mono">{language}</span>
+        <span className="text-xs text-[color:var(--chat-text-secondary)] ml-2 font-mono">{language}</span>
       </div>
       {/* Code with line numbers */}
       <div className="overflow-auto max-h-[500px]">
@@ -526,35 +529,35 @@ function CodeViewer({ code, language = 'typescript' }: { code: string; language?
 // PDF Viewer component
 function PDFViewer({ title }: { title: string }) {
   return (
-    <div className="bg-zinc-900 rounded-lg overflow-hidden border border-zinc-800 h-full flex flex-col">
+    <div className="bg-surface rounded-lg overflow-hidden border border-surface-border h-full flex flex-col">
       {/* PDF toolbar */}
-      <div className="flex items-center justify-between px-4 py-2 bg-zinc-800 border-b border-zinc-700">
+      <div className="flex items-center justify-between px-4 py-2 bg-surface-elevated border-b border-surface-border">
         <div className="flex items-center gap-2">
           <FileText className="w-4 h-4 text-red-400" />
-          <span className="text-sm text-zinc-300">{title}</span>
+          <span className="text-sm text-[color:var(--chat-text)]">{title}</span>
         </div>
         <div className="flex items-center gap-1">
-          <button className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded">
+          <button className="p-1.5 text-[color:var(--chat-text-secondary)] hover:text-[color:var(--chat-text)] hover:bg-surface-border rounded">
             <Minus className="w-4 h-4" />
           </button>
-          <span className="text-xs text-zinc-500 px-2">100%</span>
-          <button className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded">
+          <span className="text-xs text-[color:var(--chat-text-secondary)] px-2">100%</span>
+          <button className="p-1.5 text-[color:var(--chat-text-secondary)] hover:text-[color:var(--chat-text)] hover:bg-surface-border rounded">
             <Plus className="w-4 h-4" />
           </button>
         </div>
       </div>
       {/* PDF preview */}
-      <div className="flex-1 bg-zinc-950 p-4 overflow-auto">
+      <div className="flex-1 bg-surface p-4 overflow-auto">
         <div className="bg-white rounded shadow-2xl mx-auto max-w-lg p-8 text-zinc-900 min-h-[400px]">
           {/* Simulated PDF content */}
           <div className="text-center mb-6">
             <h1 className="text-xl font-bold text-zinc-800">Quarterly Report</h1>
-            <p className="text-sm text-zinc-500 mt-1">Q4 2024 Financial Summary</p>
+            <p className="text-sm text-[color:var(--chat-text-secondary)] mt-1">Q4 2024 Financial Summary</p>
           </div>
           <div className="space-y-4 text-sm">
             <div>
               <h2 className="font-semibold text-zinc-700 mb-2">Executive Summary</h2>
-              <p className="text-zinc-600 leading-relaxed">
+              <p className="text-[color:var(--chat-text-secondary)] leading-relaxed">
                 Revenue increased 23% YoY to $4.2M. Operating margin improved to 18%.
                 Customer acquisition cost decreased by 15% while lifetime value increased 28%.
               </p>
@@ -563,25 +566,25 @@ function PDFViewer({ title }: { title: string }) {
               <h2 className="font-semibold text-zinc-700 mb-2">Key Metrics</h2>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="bg-zinc-100 p-2 rounded">
-                  <div className="text-zinc-500">ARR</div>
+                  <div className="text-[color:var(--chat-text-secondary)]">ARR</div>
                   <div className="font-semibold">$4.2M</div>
                 </div>
                 <div className="bg-zinc-100 p-2 rounded">
-                  <div className="text-zinc-500">Growth</div>
+                  <div className="text-[color:var(--chat-text-secondary)]">Growth</div>
                   <div className="font-semibold text-green-600">+23%</div>
                 </div>
                 <div className="bg-zinc-100 p-2 rounded">
-                  <div className="text-zinc-500">Customers</div>
+                  <div className="text-[color:var(--chat-text-secondary)]">Customers</div>
                   <div className="font-semibold">1,247</div>
                 </div>
                 <div className="bg-zinc-100 p-2 rounded">
-                  <div className="text-zinc-500">NPS</div>
+                  <div className="text-[color:var(--chat-text-secondary)]">NPS</div>
                   <div className="font-semibold">72</div>
                 </div>
               </div>
             </div>
           </div>
-          <div className="mt-8 text-center text-xs text-zinc-400">
+          <div className="mt-8 text-center text-xs text-[color:var(--chat-text-secondary)]">
             Page 1 of 12
           </div>
         </div>
@@ -595,7 +598,7 @@ function ArtifactPanel({ artifact, onClose }: { artifact: Artifact | null; onClo
 
   if (!artifact) {
     return (
-      <div className="h-full flex items-center justify-center text-zinc-600">
+      <div className="h-full flex items-center justify-center text-[color:var(--chat-text-secondary)]">
         <div className="text-center">
           <FileCode className="w-12 h-12 mx-auto mb-3 opacity-50" />
           <p className="text-sm">Artifacts will appear here</p>
@@ -629,7 +632,7 @@ function ArtifactPanel({ artifact, onClose }: { artifact: Artifact | null; onClo
         const data = JSON.parse(artifact.content)
         return <SpreadsheetViewer data={data} />
       } catch {
-        return <pre className="text-sm font-mono text-zinc-300 whitespace-pre-wrap">{artifact.content}</pre>
+        return <pre className="text-sm font-mono whitespace-pre-wrap" style={{ color: 'var(--chat-text)' }}>{artifact.content}</pre>
       }
     }
 
@@ -643,7 +646,7 @@ function ArtifactPanel({ artifact, onClose }: { artifact: Artifact | null; onClo
 
     if (artifact.type === 'image') {
       return (
-        <div className="flex items-center justify-center h-full bg-zinc-900 rounded-lg p-4">
+        <div className="flex items-center justify-center h-full bg-surface rounded-lg p-4">
           <img
             src={artifact.content}
             alt={artifact.title}
@@ -681,7 +684,7 @@ function ArtifactPanel({ artifact, onClose }: { artifact: Artifact | null; onClo
 
           return (
             <div className="space-y-4">
-              <div className="bg-zinc-900/50 rounded-lg overflow-hidden border border-surface-border">
+              <div className="bg-surface/50 rounded-lg overflow-hidden border border-surface-border">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -700,7 +703,7 @@ function ArtifactPanel({ artifact, onClose }: { artifact: Artifact | null; onClo
                           {row.map((cell, j) => (
                             <td key={j} className={clsx(
                               'px-4 py-2',
-                              j === 0 ? 'text-zinc-300' : 'text-zinc-400 font-mono'
+                              j === 0 ? 'text-[color:var(--chat-text)]' : 'text-[color:var(--chat-text-secondary)] font-mono'
                             )}>{cell}</td>
                           ))}
                         </tr>
@@ -710,9 +713,9 @@ function ArtifactPanel({ artifact, onClose }: { artifact: Artifact | null; onClo
                 </div>
               </div>
               {footerLines.length > 0 && (
-                <div className="bg-zinc-900/30 rounded-lg p-4 border border-surface-border/50">
+                <div className="bg-surface/30 rounded-lg p-4 border border-surface-border/50">
                   {footerLines.map((line, i) => (
-                    <p key={i} className="text-sm text-zinc-400">{line}</p>
+                    <p key={i} className="text-sm text-[color:var(--chat-text-secondary)]">{line}</p>
                   ))}
                 </div>
               )}
@@ -723,9 +726,9 @@ function ArtifactPanel({ artifact, onClose }: { artifact: Artifact | null; onClo
 
       // Fallback to pre-formatted text
       return (
-        <div className="bg-zinc-900/50 rounded-lg overflow-hidden border border-surface-border">
+        <div className="bg-surface/50 rounded-lg overflow-hidden border border-surface-border">
           <div className="overflow-x-auto">
-            <pre className="text-sm font-mono text-zinc-300 p-4 whitespace-pre leading-relaxed">{artifact.content}</pre>
+            <pre className="text-sm font-mono text-[color:var(--chat-text)] p-4 whitespace-pre leading-relaxed">{artifact.content}</pre>
           </div>
         </div>
       )
@@ -733,8 +736,8 @@ function ArtifactPanel({ artifact, onClose }: { artifact: Artifact | null; onClo
 
     if (artifact.type === 'chart') {
       return (
-        <div className="bg-zinc-900/50 rounded-lg p-6 border border-surface-border">
-          <pre className="text-sm font-mono text-zinc-300 whitespace-pre leading-relaxed">{artifact.content}</pre>
+        <div className="bg-surface/50 rounded-lg p-6 border border-surface-border">
+          <pre className="text-sm font-mono text-[color:var(--chat-text)] whitespace-pre leading-relaxed">{artifact.content}</pre>
         </div>
       )
     }
@@ -746,25 +749,25 @@ function ArtifactPanel({ artifact, onClose }: { artifact: Artifact | null; onClo
         <div className="prose prose-invert prose-sm max-w-none">
           {lines.map((line, i) => {
             if (line.startsWith('# ')) {
-              return <h1 key={i} className="text-xl font-bold text-white mt-4 mb-2">{line.slice(2)}</h1>
+              return <h1 key={i} className="text-xl font-bold mt-4 mb-2" style={{ color: 'var(--chat-text)' }}>{line.slice(2)}</h1>
             }
             if (line.startsWith('## ')) {
-              return <h2 key={i} className="text-lg font-semibold text-white mt-4 mb-2">{line.slice(3)}</h2>
+              return <h2 key={i} className="text-lg font-semibold mt-4 mb-2" style={{ color: 'var(--chat-text)' }}>{line.slice(3)}</h2>
             }
             if (line.startsWith('- ')) {
-              return <li key={i} className="text-zinc-300 ml-4">{line.slice(2)}</li>
+              return <li key={i} className="text-[color:var(--chat-text)] ml-4">{line.slice(2)}</li>
             }
             if (line.startsWith('```')) {
               return null
             }
             if (line.startsWith('*') && line.endsWith('*')) {
-              return <p key={i} className="text-zinc-500 italic text-sm">{line.slice(1, -1)}</p>
+              return <p key={i} className="text-[color:var(--chat-text-secondary)] italic text-sm">{line.slice(1, -1)}</p>
             }
             if (line.trim() === '---') {
-              return <hr key={i} className="border-zinc-700 my-4" />
+              return <hr key={i} className="border-surface-border my-4" />
             }
             if (line.trim()) {
-              return <p key={i} className="text-zinc-300 mb-2">{line}</p>
+              return <p key={i} className="text-[color:var(--chat-text)] mb-2">{line}</p>
             }
             return <div key={i} className="h-2" />
           })}
@@ -773,7 +776,7 @@ function ArtifactPanel({ artifact, onClose }: { artifact: Artifact | null; onClo
     }
 
     // Default: plain text
-    return <pre className="text-sm font-mono text-zinc-300 whitespace-pre-wrap">{artifact.content}</pre>
+    return <pre className="text-sm font-mono text-[color:var(--chat-text)] whitespace-pre-wrap">{artifact.content}</pre>
   }
 
   return (
@@ -787,19 +790,19 @@ function ArtifactPanel({ artifact, onClose }: { artifact: Artifact | null; onClo
           <Icon className="w-4 h-4 text-accent" />
           <span className="text-sm font-medium">{artifact.title}</span>
           {artifact.language && (
-            <span className="text-xs text-zinc-500 bg-surface px-2 py-0.5 rounded">{artifact.language}</span>
+            <span className="text-xs text-[color:var(--chat-text-secondary)] bg-surface px-2 py-0.5 rounded">{artifact.language}</span>
           )}
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleCopy}
-            className="p-1.5 text-zinc-500 hover:text-white transition-colors"
+            className="p-1.5 text-[color:var(--chat-text-secondary)] hover:text-[color:var(--chat-text)] transition-colors"
           >
             {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
           </button>
           <button
             onClick={onClose}
-            className="p-1.5 text-zinc-500 hover:text-white transition-colors"
+            className="p-1.5 text-[color:var(--chat-text-secondary)] hover:text-[color:var(--chat-text)] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -812,20 +815,107 @@ function ArtifactPanel({ artifact, onClose }: { artifact: Artifact | null; onClo
   )
 }
 
+// Conversation type
+interface Conversation {
+  id: string
+  title: string
+  messages: DemoMessage[]
+  createdAt: number
+}
+
+const WELCOME_MESSAGE: DemoMessage = {
+  id: '0',
+  role: 'assistant',
+  content: "Welcome! This demo showcases all the agentic UI components. Try these:\n\n• **\"analyze\"** → Tool calls, tasks, thinking, charts\n• **\"code\"** → Syntax-highlighted code\n• **\"spreadsheet\"** → Interactive spreadsheet\n• **\"pdf\"** → PDF document viewer\n• **\"search\"** → Web search tools\n• **\"build\"** → Multi-step tasks\n• **\"image\"** → Image artifacts\n• **\"deploy\"** → Approval flow\n• **\"refactor\"** → Diff view\n• **\"configure\"** → Question cards",
+}
+
 function ChatDemo() {
-  const [messages, setMessages] = useState<DemoMessage[]>([
-    {
-      id: '0',
-      role: 'assistant',
-      content: "Welcome! This demo showcases all the agentic UI components. Try these:\n\n• **\"analyze\"** → Tool calls, tasks, thinking, charts\n• **\"code\"** → Syntax-highlighted code\n• **\"spreadsheet\"** → Interactive spreadsheet\n• **\"pdf\"** → PDF document viewer\n• **\"search\"** → Web search tools\n• **\"build\"** → Multi-step tasks\n• **\"image\"** → Image artifacts\n• **\"deploy\"** → Approval flow\n• **\"refactor\"** → Diff view\n• **\"configure\"** → Question cards",
-    },
-  ])
+  // Load conversations from localStorage
+  const [conversations, setConversations] = useState<Conversation[]>(() => {
+    if (typeof window === 'undefined') return []
+    const saved = localStorage.getItem('chat-ui-conversations')
+    if (saved) {
+      try {
+        return JSON.parse(saved)
+      } catch {
+        return []
+      }
+    }
+    return []
+  })
+
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
+  const [messages, setMessages] = useState<DemoMessage[]>([])
   const [input, setInput] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [streamingThinking, setStreamingThinking] = useState('')
   const [currentArtifact, setCurrentArtifact] = useState<Artifact | null>(null)
   const [showArtifactPanel, setShowArtifactPanel] = useState(true)
+  const [showConversationList, setShowConversationList] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const conversationDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Save conversations to localStorage
+  useEffect(() => {
+    localStorage.setItem('chat-ui-conversations', JSON.stringify(conversations))
+  }, [conversations])
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 150) + 'px'
+    }
+  }, [input])
+
+  // Save current conversation when messages change
+  useEffect(() => {
+    if (currentConversationId && messages.length > 1) {
+      setConversations(prev => prev.map(conv =>
+        conv.id === currentConversationId
+          ? { ...conv, messages }
+          : conv
+      ))
+    }
+  }, [messages, currentConversationId])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (conversationDropdownRef.current && !conversationDropdownRef.current.contains(e.target as Node)) {
+        setShowConversationList(false)
+      }
+    }
+    if (showConversationList) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showConversationList])
+
+  const createNewConversation = () => {
+    // Start fresh with no conversation ID - it will be created on first message
+    setCurrentConversationId(null)
+    setMessages([])
+    setCurrentArtifact(null)
+    setShowConversationList(false)
+  }
+
+  const loadConversation = (conv: Conversation) => {
+    setCurrentConversationId(conv.id)
+    setMessages(conv.messages)
+    setCurrentArtifact(null)
+    setShowConversationList(false)
+  }
+
+  const deleteConversation = (convId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setConversations(prev => prev.filter(c => c.id !== convId))
+    if (currentConversationId === convId) {
+      setCurrentConversationId(null)
+      setMessages([WELCOME_MESSAGE])
+    }
+  }
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -884,6 +974,25 @@ function ChatDemo() {
 
   const handleSend = async () => {
     if (!input.trim() || isProcessing) return
+
+    // Create a new conversation if this is the first user message
+    if (!currentConversationId) {
+      const newConv: Conversation = {
+        id: Date.now().toString(),
+        title: input.slice(0, 30) + (input.length > 30 ? '...' : ''),
+        messages: [...messages],
+        createdAt: Date.now(),
+      }
+      setConversations(prev => [newConv, ...prev])
+      setCurrentConversationId(newConv.id)
+    } else {
+      // Update conversation title if it's still "New Chat"
+      setConversations(prev => prev.map(conv =>
+        conv.id === currentConversationId && conv.title === 'New Chat'
+          ? { ...conv, title: input.slice(0, 30) + (input.length > 30 ? '...' : '') }
+          : conv
+      ))
+    }
 
     const userMessage: DemoMessage = {
       id: Date.now().toString(),
@@ -1056,65 +1165,256 @@ function ChatDemo() {
       {/* Chat */}
       <div
         className="flex flex-col min-w-0"
-        style={{ flex: '0 0 40%', minWidth: '320px' }}
+        style={showArtifactPanel ? { flex: '0 0 40%', minWidth: '320px' } : { flex: 1 }}
       >
-        <div className="flex-1 overflow-y-auto">
-          {messages.map(message => (
-            <div key={message.id}>
-              <MessageBubble message={message} />
-              {message.thinking && (
-                <div className="mx-4 mb-2">
-                  <ThinkingBox thinking={message.thinking} defaultCollapsed={false} />
+        {/* Conversation Header */}
+        <div className="flex items-center justify-between px-3 py-2 border-b border-surface-border">
+          <div className="relative" ref={conversationDropdownRef}>
+            <button
+              onClick={() => setShowConversationList(!showConversationList)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-surface-elevated transition-colors text-sm"
+              style={{ color: 'var(--chat-text)' }}
+            >
+              <MessageSquare className="w-4 h-4" style={{ color: 'var(--chat-text-secondary)' }} />
+              <span className="max-w-[150px] truncate">
+                {currentConversationId
+                  ? conversations.find(c => c.id === currentConversationId)?.title || 'Chat'
+                  : 'New Chat'}
+              </span>
+              <ChevronDown className="w-3 h-3" style={{ color: 'var(--chat-text-secondary)' }} />
+            </button>
+
+            {/* Conversation dropdown */}
+            {showConversationList && (
+              <div
+                className="absolute top-full left-0 mt-1 w-64 rounded-lg border border-surface-border bg-surface-elevated shadow-xl z-50 overflow-hidden"
+              >
+                <div className="p-2 border-b border-surface-border">
+                  <button
+                    onClick={createNewConversation}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-accent/10 transition-colors text-sm text-accent"
+                  >
+                    <Plus className="w-4 h-4" />
+                    New Conversation
+                  </button>
                 </div>
-              )}
-              {message.toolCalls && message.toolCalls.length > 0 && (
-                <div className="mx-4 mb-2 space-y-2">
-                  {message.toolCalls.map(tc => (
-                    <ToolCallCard key={tc.id} toolCall={tc} />
+                <div className="max-h-64 overflow-y-auto">
+                  {conversations.length === 0 ? (
+                    <div className="px-3 py-4 text-center text-sm" style={{ color: 'var(--chat-text-secondary)' }}>
+                      No saved conversations
+                    </div>
+                  ) : (
+                    conversations.map(conv => (
+                      <div
+                        key={conv.id}
+                        onClick={() => loadConversation(conv)}
+                        className={clsx(
+                          'flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors group',
+                          conv.id === currentConversationId ? 'bg-accent/10' : 'hover:bg-surface-border/50'
+                        )}
+                      >
+                        <MessageSquare className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--chat-text-secondary)' }} />
+                        <span className="flex-1 truncate text-sm" style={{ color: 'var(--chat-text)' }}>
+                          {conv.title}
+                        </span>
+                        <button
+                          onClick={(e) => deleteConversation(conv.id, e)}
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/20 transition-all"
+                        >
+                          <Trash2 className="w-3 h-3 text-red-400" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={createNewConversation}
+            className="p-2 rounded-lg hover:bg-surface-elevated transition-colors"
+            title="New conversation"
+          >
+            <Plus className="w-4 h-4" style={{ color: 'var(--chat-text-secondary)' }} />
+          </button>
+        </div>
+
+        <div className={clsx('flex-1 overflow-y-auto flex flex-col')}>
+          <div className={clsx(
+            !showArtifactPanel && 'max-w-3xl mx-auto w-full',
+            messages.length === 0 ? 'flex-1 flex flex-col' : ''
+          )}>
+
+          {/* Empty state - input at top, suggestions centered below like Vith */}
+          {messages.length === 0 && (
+            <>
+              {/* Input area - at top for empty conversations */}
+              <div className="p-4">
+                <div className="bg-surface-elevated border border-surface-border rounded-xl focus-within:border-accent focus-within:ring-1 focus-within:ring-accent/50 transition-all">
+                  <textarea
+                    ref={textareaRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        handleSend()
+                      }
+                    }}
+                    placeholder="Ask me anything..."
+                    disabled={isProcessing}
+                    rows={4}
+                    className="w-full px-4 py-3 bg-transparent text-sm focus:outline-none resize-none"
+                    style={{ color: 'var(--chat-text)' }}
+                  />
+                  <div className="px-4 pb-3 flex items-center justify-between">
+                    <p className="text-xs" style={{ color: 'var(--chat-text-secondary)' }}>
+                      Enter to send · Shift+Enter for new line
+                    </p>
+                    <div className="flex items-center gap-2">
+                      {/* Artifact panel toggle */}
+                      <button
+                        onClick={() => setShowArtifactPanel(!showArtifactPanel)}
+                        className={clsx(
+                          'p-2 rounded-lg transition-colors',
+                          showArtifactPanel
+                            ? 'bg-accent/20 text-accent'
+                            : currentArtifact
+                              ? 'bg-accent text-white animate-pulse'
+                              : 'hover:bg-surface-border/50'
+                        )}
+                        style={{ color: showArtifactPanel || currentArtifact ? undefined : 'var(--chat-text-secondary)' }}
+                        title={showArtifactPanel ? 'Hide artifact panel' : 'Show artifact panel'}
+                      >
+                        <PanelRight className="w-4 h-4" />
+                      </button>
+                      {isProcessing ? (
+                        <button
+                          onClick={() => {
+                            setIsProcessing(false)
+                            setStreamingThinking('')
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors flex items-center gap-1.5 text-xs font-medium"
+                        >
+                          <Square className="w-3 h-3" />
+                          Stop
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleSend}
+                          disabled={!input.trim()}
+                          className={clsx(
+                            'px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-medium',
+                            input.trim()
+                              ? 'bg-accent hover:bg-accent-dark text-white'
+                              : 'bg-surface-border text-[var(--chat-text-secondary)] cursor-not-allowed'
+                          )}
+                        >
+                          <Send className="w-3 h-3" />
+                          Send
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Centered suggestions */}
+              <div className="flex-1 flex flex-col items-center justify-center px-4 text-center">
+                <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center mb-3">
+                  <MessageSquare className="w-6 h-6 text-accent" />
+                </div>
+                <h2 className="text-sm font-medium mb-1" style={{ color: 'var(--chat-text)' }}>
+                  Start a conversation
+                </h2>
+                <p className="text-xs mb-6" style={{ color: 'var(--chat-text-secondary)' }}>
+                  Try a command below
+                </p>
+                <div className="flex flex-wrap justify-center gap-2 max-w-md">
+                  {['analyze', 'code', 'spreadsheet', 'pdf', 'search', 'build', 'image', 'deploy', 'refactor', 'configure'].map(cmd => (
+                    <button
+                      key={cmd}
+                      onClick={() => {
+                        setInput(cmd)
+                        setTimeout(() => handleSend(), 100)
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs bg-surface-elevated border border-surface-border hover:border-accent/50 transition-colors"
+                      style={{ color: 'var(--chat-text)' }}
+                    >
+                      {cmd}
+                    </button>
                   ))}
                 </div>
-              )}
-              {message.tasks && (
-                <div className="mx-4 mb-2">
-                  <TodoBox tasks={message.tasks} />
-                </div>
-              )}
-              {message.diff && (
-                <div className="mx-4 mb-2">
-                  <DiffView change={message.diff} showActions={false} />
-                </div>
-              )}
-              {message.approval && (
-                <div className="mx-4 mb-2">
-                  <ApprovalCard
-                    request={message.approval}
-                    onApprove={() => handleApproval(message.id, true)}
-                    onDeny={() => handleApproval(message.id, false)}
-                  />
-                </div>
-              )}
-              {message.question && (
-                <div className="mx-4 mb-2">
-                  <QuestionCard
-                    question={message.question}
-                    onAnswer={(answer) => handleQuestion(message.id, answer as string)}
-                  />
-                </div>
-              )}
-              {message.artifact && (
-                <motion.button
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  onClick={() => {
-                    setCurrentArtifact(message.artifact!)
-                    setShowArtifactPanel(true)
-                  }}
-                  className="mx-4 mb-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-accent/10 border border-accent/20 text-accent text-sm hover:bg-accent/20 transition-colors"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>View {message.artifact.type}: {message.artifact.title}</span>
-                  <PanelRight className="w-4 h-4 ml-auto" />
-                </motion.button>
+              </div>
+            </>
+          )}
+
+          {messages.map(message => (
+            <div key={message.id}>
+              {/* User messages render normally */}
+              {message.role === 'user' && <MessageBubble message={message} />}
+
+              {/* Assistant messages: show thinking/tools/tasks FIRST, then the response */}
+              {message.role === 'assistant' && (
+                <>
+                  {message.thinking && (
+                    <div className="mx-4 mb-2">
+                      <ThinkingBox thinking={message.thinking} defaultCollapsed={false} />
+                    </div>
+                  )}
+                  {message.toolCalls && message.toolCalls.length > 0 && (
+                    <div className="mx-4 mb-2 space-y-2">
+                      {message.toolCalls.map(tc => (
+                        <ToolCallCard key={tc.id} toolCall={tc} />
+                      ))}
+                    </div>
+                  )}
+                  {message.tasks && (
+                    <div className="mx-4 mb-2">
+                      <TodoBox tasks={message.tasks} />
+                    </div>
+                  )}
+                  {message.diff && (
+                    <div className="mx-4 mb-2">
+                      <DiffView change={message.diff} showActions={false} />
+                    </div>
+                  )}
+                  {message.approval && (
+                    <div className="mx-4 mb-2">
+                      <ApprovalCard
+                        request={message.approval}
+                        onApprove={() => handleApproval(message.id, true)}
+                        onDeny={() => handleApproval(message.id, false)}
+                      />
+                    </div>
+                  )}
+                  {message.question && (
+                    <div className="mx-4 mb-2">
+                      <QuestionCard
+                        question={message.question}
+                        onAnswer={(answer) => handleQuestion(message.id, answer as string)}
+                      />
+                    </div>
+                  )}
+                  {/* The actual assistant response text comes AFTER all the above */}
+                  <MessageBubble message={message} />
+                  {message.artifact && (
+                    <motion.button
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      onClick={() => {
+                        setCurrentArtifact(message.artifact!)
+                        setShowArtifactPanel(true)
+                      }}
+                      className="mx-4 mb-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-accent/10 border border-accent/20 text-accent text-sm hover:bg-accent/20 transition-colors"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>View {message.artifact.type}: {message.artifact.title}</span>
+                      <PanelRight className="w-4 h-4 ml-auto" />
+                    </motion.button>
+                  )}
+                </>
               )}
             </div>
           ))}
@@ -1128,64 +1428,74 @@ function ChatDemo() {
 
           {/* Simple loading spinner when processing but no thinking yet */}
           {isProcessing && !streamingThinking && messages[messages.length - 1]?.role === 'user' && (
-            <div className="flex items-center gap-2 px-4 py-3 text-zinc-400">
+            <div className="flex items-center gap-2 px-4 py-3 text-[color:var(--chat-text-secondary)]">
               <Loader2 className="w-4 h-4 animate-spin" />
               <span className="text-sm">Processing...</span>
             </div>
           )}
 
           <div ref={messagesEndRef} />
-        </div>
-
-        <div className="p-4 border-t border-surface-border">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-              placeholder="Try: analyze, code, spreadsheet, search, build, image, deploy..."
-              disabled={isProcessing}
-              className="flex-1 px-4 py-3 rounded-xl border border-surface-border bg-surface-elevated text-sm focus:outline-none focus:border-accent transition-colors disabled:opacity-50"
-              style={{ color: 'var(--chat-text)' }}
-            />
-            {isProcessing ? (
-              <button
-                onClick={() => {
-                  setIsProcessing(false)
-                  setStreamingThinking('')
-                }}
-                className="p-3 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors"
-              >
-                <Square className="w-5 h-5" />
-              </button>
-            ) : (
-              <button
-                onClick={handleSend}
-                disabled={!input.trim()}
-                className="p-3 rounded-xl bg-accent text-white hover:bg-accent-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Send className="w-5 h-5" />
-              </button>
-            )}
-            {/* Artifact panel toggle */}
-            <button
-              onClick={() => setShowArtifactPanel(!showArtifactPanel)}
-              className={clsx(
-                'p-3 rounded-xl transition-colors',
-                showArtifactPanel
-                  ? 'bg-accent/20 text-accent'
-                  : currentArtifact
-                    ? 'bg-accent text-white animate-pulse'
-                    : 'bg-surface-elevated'
-              )}
-              style={{ color: showArtifactPanel || currentArtifact ? undefined : 'var(--chat-text-secondary)' }}
-              title={showArtifactPanel ? 'Hide artifact panel' : 'Show artifact panel'}
-            >
-              <PanelRight className="w-5 h-5" />
-            </button>
           </div>
         </div>
+
+        {/* Bottom input area - only shown when there are messages */}
+        {messages.length > 0 && (
+          <div className="p-4 border-t border-surface-border">
+            <div className={clsx('flex items-end gap-2', !showArtifactPanel && 'max-w-3xl mx-auto')}>
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSend()
+                  }
+                }}
+                placeholder="Try: analyze, code, spreadsheet, search, build, image, deploy..."
+                disabled={isProcessing}
+                rows={1}
+                className="flex-1 px-4 py-3 rounded-xl border border-surface-border bg-surface-elevated text-sm focus:outline-none focus:border-accent transition-colors disabled:opacity-50 resize-none overflow-hidden"
+                style={{ color: 'var(--chat-text)' }}
+              />
+              {isProcessing ? (
+                <button
+                  onClick={() => {
+                    setIsProcessing(false)
+                    setStreamingThinking('')
+                  }}
+                  className="p-3 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors"
+                >
+                  <Square className="w-5 h-5" />
+                </button>
+              ) : (
+                <button
+                  onClick={handleSend}
+                  disabled={!input.trim()}
+                  className="p-3 rounded-xl bg-accent text-white hover:bg-accent-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Send className="w-5 h-5" />
+                </button>
+              )}
+              {/* Artifact panel toggle */}
+              <button
+                onClick={() => setShowArtifactPanel(!showArtifactPanel)}
+                className={clsx(
+                  'p-3 rounded-xl transition-colors',
+                  showArtifactPanel
+                    ? 'bg-accent/20 text-accent'
+                    : currentArtifact
+                      ? 'bg-accent text-white animate-pulse'
+                      : 'bg-surface-elevated'
+                )}
+                style={{ color: showArtifactPanel || currentArtifact ? undefined : 'var(--chat-text-secondary)' }}
+                title={showArtifactPanel ? 'Hide artifact panel' : 'Show artifact panel'}
+              >
+                <PanelRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Artifact Panel */}
@@ -1203,6 +1513,22 @@ function ChatDemo() {
 
 function CodeBlock({ code, language = 'tsx', title }: { code: string; language?: string; title?: string }) {
   const [copied, setCopied] = useState(false)
+  const [html, setHtml] = useState<string>('')
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    setIsLoading(true)
+    codeToHtml(code, {
+      lang: language,
+      theme: 'github-dark',
+    }).then(result => {
+      setHtml(result)
+      setIsLoading(false)
+    }).catch(() => {
+      setHtml(`<pre><code>${code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>`)
+      setIsLoading(false)
+    })
+  }, [code, language])
 
   const handleCopy = () => {
     navigator.clipboard.writeText(code)
@@ -1211,20 +1537,29 @@ function CodeBlock({ code, language = 'tsx', title }: { code: string; language?:
   }
 
   return (
-    <div className="relative rounded-lg border border-surface-border bg-[#0d0d12] overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2 border-b border-surface-border">
-        <span className="text-xs text-zinc-500 font-mono">{title || language}</span>
+    <div className="relative rounded-lg border border-surface-border overflow-hidden" style={{ background: 'var(--chat-surface)' }}>
+      <div className="flex items-center justify-between px-4 py-2 border-b border-surface-border" style={{ background: 'var(--surface-elevated)' }}>
+        <span className="text-xs font-mono" style={{ color: 'var(--chat-text-secondary)' }}>{title || language}</span>
         <button
           onClick={handleCopy}
-          className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-white transition-colors"
+          className="flex items-center gap-1.5 text-xs transition-colors"
+          style={{ color: 'var(--chat-text-secondary)' }}
         >
           {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
           {copied ? 'Copied!' : 'Copy'}
         </button>
       </div>
-      <pre className="p-4 overflow-x-auto text-sm font-mono leading-relaxed">
-        <code className="text-zinc-300">{code}</code>
-      </pre>
+      {isLoading ? (
+        <div className="p-4">
+          <div className="h-4 rounded w-3/4 mb-2 animate-pulse" style={{ background: 'var(--surface-elevated)' }}></div>
+          <div className="h-4 rounded w-1/2 animate-pulse" style={{ background: 'var(--surface-elevated)' }}></div>
+        </div>
+      ) : (
+        <div
+          className="p-4 overflow-x-auto text-sm leading-relaxed [&_pre]:!bg-transparent [&_pre]:!m-0 [&_code]:!text-sm"
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      )}
     </div>
   )
 }
@@ -1337,7 +1672,7 @@ function DocsPage({ onNavigate, theme, onToggleTheme }: { onNavigate: (page: str
                     'w-full text-left px-3 py-2 rounded-lg text-sm transition-colors',
                     activeSection === section.id
                       ? 'bg-accent/10 text-accent'
-                      : 'text-zinc-400 hover:text-white hover:bg-surface-elevated'
+                      : 'text-[color:var(--chat-text-secondary)] hover:text-[color:var(--chat-text)] hover:bg-surface-elevated'
                   )}
                 >
                   {section.label}
@@ -1371,7 +1706,7 @@ function QuickStartSection() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold mb-2">Quick Start</h1>
-        <p className="text-zinc-400">Get a working chat UI in under 5 minutes.</p>
+        <p className="text-[color:var(--chat-text-secondary)]">Get a working chat UI in under 5 minutes.</p>
       </div>
 
       <div>
@@ -1392,7 +1727,7 @@ function QuickStartSection() {
             <div key={p.name} className="flex items-center gap-3 p-2 rounded-lg bg-surface-elevated border border-surface-border">
               <span>{p.icon}</span>
               <span className="font-medium">{p.name}</span>
-              <span className="text-zinc-500">— {p.desc}</span>
+              <span className="text-[color:var(--chat-text-secondary)]">— {p.desc}</span>
             </div>
           ))}
         </div>
@@ -1434,7 +1769,7 @@ function InstallationSection() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold mb-2">Installation</h1>
-        <p className="text-zinc-400">Install the package and configure your project.</p>
+        <p className="text-[color:var(--chat-text-secondary)]">Install the package and configure your project.</p>
       </div>
 
       <div>
@@ -1476,7 +1811,7 @@ function AdaptersSection() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold mb-2">Model Adapters</h1>
-        <p className="text-zinc-400">Connect to any LLM provider.</p>
+        <p className="text-[color:var(--chat-text-secondary)]">Connect to any LLM provider.</p>
       </div>
 
       <div className="space-y-4">
@@ -1561,7 +1896,7 @@ function ComponentsSection() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold mb-2">Components</h1>
-        <p className="text-zinc-400">All available components and props.</p>
+        <p className="text-[color:var(--chat-text-secondary)]">All available components and props.</p>
       </div>
 
       <div className="space-y-4">
@@ -1603,7 +1938,7 @@ function HooksSection() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold mb-2">Hooks</h1>
-        <p className="text-zinc-400">React hooks for chat state.</p>
+        <p className="text-[color:var(--chat-text-secondary)]">React hooks for chat state.</p>
       </div>
 
       <div className="space-y-4">
@@ -1649,7 +1984,7 @@ function ConversationsSection() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold mb-2">Conversation Management</h1>
-        <p className="text-zinc-400">Manage multiple conversations with persistence.</p>
+        <p className="text-[color:var(--chat-text-secondary)]">Manage multiple conversations with persistence.</p>
       </div>
 
       <div className="space-y-4">
@@ -1683,7 +2018,7 @@ function ChatApp() {
 
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">Custom Storage Backend</h2>
-        <p className="text-sm text-zinc-400 mb-3">
+        <p className="text-sm text-[color:var(--chat-text-secondary)] mb-3">
           By default, conversations are stored in localStorage. For production, implement a custom store.
         </p>
         <CodeBlock code={`import type { ConversationStore } from '@vith-ai/chat-ui'
@@ -1711,15 +2046,15 @@ const conversations = useConversations({ store: supabaseStore })`} />
         <div className="grid gap-2 text-sm">
           <div className="p-3 rounded-lg bg-surface-elevated border border-surface-border">
             <code className="text-accent">createLocalStorageStore(key?)</code>
-            <p className="text-zinc-500 mt-1">Browser localStorage (default)</p>
+            <p className="text-[color:var(--chat-text-secondary)] mt-1">Browser localStorage (default)</p>
           </div>
           <div className="p-3 rounded-lg bg-surface-elevated border border-surface-border">
             <code className="text-accent">createMemoryStore()</code>
-            <p className="text-zinc-500 mt-1">In-memory (SSR/testing)</p>
+            <p className="text-[color:var(--chat-text-secondary)] mt-1">In-memory (SSR/testing)</p>
           </div>
           <div className="p-3 rounded-lg bg-surface-elevated border border-surface-border">
             <code className="text-accent">ConversationStore</code>
-            <p className="text-zinc-500 mt-1">Interface for custom backends</p>
+            <p className="text-[color:var(--chat-text-secondary)] mt-1">Interface for custom backends</p>
           </div>
         </div>
       </div>
@@ -1732,7 +2067,7 @@ function ArtifactsSection() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold mb-2">Artifact System</h1>
-        <p className="text-zinc-400">Display rich content with pluggable renderers. Easily add support for any content type.</p>
+        <p className="text-[color:var(--chat-text-secondary)]">Display rich content with pluggable renderers. Easily add support for any content type.</p>
       </div>
 
       <div className="space-y-4">
@@ -1789,7 +2124,7 @@ registry.register({
 
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">Example: Spreadsheets (Univer)</h2>
-        <p className="text-sm text-zinc-400 mb-2">
+        <p className="text-sm text-[color:var(--chat-text-secondary)] mb-2">
           Univer is fully open source (Apache 2.0) with Excel-like features.
         </p>
         <CodeBlock code={`// npm install @univerjs/presets @univerjs/preset-sheets-core
@@ -1862,7 +2197,7 @@ registry.register({
 
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">Optional Dependencies</h2>
-        <p className="text-sm text-zinc-400 mb-3">
+        <p className="text-sm text-[color:var(--chat-text-secondary)] mb-3">
           All fully open source (MIT/Apache 2.0). Install only what you need:
         </p>
         <CodeBlock code={`# Syntax highlighting (MIT)
@@ -1916,7 +2251,7 @@ function PermissionsSection() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold mb-2">Permission System</h1>
-        <p className="text-zinc-400">Configure approval flows for sensitive tool operations.</p>
+        <p className="text-[color:var(--chat-text-secondary)]">Configure approval flows for sensitive tool operations.</p>
       </div>
 
       <div className="space-y-4">
@@ -1930,7 +2265,7 @@ function PermissionsSection() {
           ].map(({ level, desc, color }) => (
             <div key={level} className="flex items-center gap-3 p-2 rounded-lg bg-surface-elevated border border-surface-border">
               <code className={color}>{level}</code>
-              <span className="text-zinc-500">{desc}</span>
+              <span className="text-[color:var(--chat-text-secondary)]">{desc}</span>
             </div>
           ))}
         </div>
@@ -2011,7 +2346,7 @@ function CustomizationSection() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold mb-2">Customization</h1>
-        <p className="text-zinc-400">Customize avatars, tools, and behavior.</p>
+        <p className="text-[color:var(--chat-text-secondary)]">Customize avatars, tools, and behavior.</p>
       </div>
 
       <div className="space-y-4">
@@ -2034,7 +2369,7 @@ function CustomizationSection() {
 
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">Layout & Panel Ratios</h2>
-        <p className="text-sm text-zinc-400 mb-3">
+        <p className="text-sm text-[color:var(--chat-text-secondary)] mb-3">
           Configure the chat/artifact panel split ratio. Default is 40/60 (40% chat, 60% artifact).
         </p>
         <CodeBlock code={`<ChatContainer
@@ -2046,21 +2381,21 @@ function CustomizationSection() {
   }}
   showArtifactPanel={true}  // Toggle artifact panel visibility
 />`} />
-        <p className="text-sm text-zinc-400 mt-3">
+        <p className="text-sm text-[color:var(--chat-text-secondary)] mt-3">
           Common configurations:
         </p>
         <div className="grid gap-2 text-sm mt-2">
           <div className="flex items-center gap-3 p-2 rounded-lg bg-surface-elevated border border-surface-border">
             <span className="font-mono text-accent">40/60</span>
-            <span className="text-zinc-500">— Default (like Vith)</span>
+            <span className="text-[color:var(--chat-text-secondary)]">— Default (like Vith)</span>
           </div>
           <div className="flex items-center gap-3 p-2 rounded-lg bg-surface-elevated border border-surface-border">
             <span className="font-mono text-accent">50/50</span>
-            <span className="text-zinc-500">— Equal split</span>
+            <span className="text-[color:var(--chat-text-secondary)]">— Equal split</span>
           </div>
           <div className="flex items-center gap-3 p-2 rounded-lg bg-surface-elevated border border-surface-border">
             <span className="font-mono text-accent">30/70</span>
-            <span className="text-zinc-500">— Code-focused</span>
+            <span className="text-[color:var(--chat-text-secondary)]">— Code-focused</span>
           </div>
         </div>
       </div>
@@ -2073,7 +2408,7 @@ function ThemingSection() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold mb-2">Theming</h1>
-        <p className="text-zinc-400">Customize colors and appearance.</p>
+        <p className="text-[color:var(--chat-text-secondary)]">Customize colors and appearance.</p>
       </div>
 
       <div className="space-y-4">
@@ -2111,7 +2446,7 @@ function RecipesSection() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold mb-2">Recipes</h1>
-        <p className="text-zinc-400">Common patterns and integrations.</p>
+        <p className="text-[color:var(--chat-text-secondary)]">Common patterns and integrations.</p>
       </div>
 
       <div className="space-y-4">
@@ -2152,7 +2487,7 @@ function TypesSection() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold mb-2">TypeScript</h1>
-        <p className="text-zinc-400">Type definitions.</p>
+        <p className="text-[color:var(--chat-text-secondary)]">Type definitions.</p>
       </div>
 
       <CodeBlock code={`interface ChatMessage {

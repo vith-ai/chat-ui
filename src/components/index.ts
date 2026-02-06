@@ -20,4 +20,4 @@ export { QuestionCard } from './QuestionCard'
 export type { QuestionCardProps } from './QuestionCard'
 
 export { ChatContainer } from './ChatContainer'
-export type { ChatContainerProps } from './ChatContainer'
+export type { ChatContainerProps, EmptyStateLayout } from './ChatContainer'
