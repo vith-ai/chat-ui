@@ -431,7 +431,11 @@ function MessageBubble({ message }: { message: DemoMessage }) {
           isUser ? 'bg-accent' : 'bg-surface-elevated border border-surface-border'
         )}
       >
-        {isUser ? <User className="w-4 h-4 text-white" /> : <Bot className="w-4 h-4" />}
+        {isUser ? (
+          <User className="w-4 h-4 text-white" />
+        ) : (
+          <Bot className="w-4 h-4" style={{ color: 'var(--chat-text)' }} />
+        )}
       </div>
       <div
         className={clsx(
@@ -440,6 +444,7 @@ function MessageBubble({ message }: { message: DemoMessage }) {
             ? 'bg-accent text-white'
             : 'bg-surface-elevated border border-surface-border'
         )}
+        style={!isUser ? { color: 'var(--chat-text)' } : undefined}
       >
         <div className="text-sm leading-relaxed">{renderContent(message.content)}</div>
       </div>
@@ -457,14 +462,15 @@ function ThinkingBox({ thinking, isExpanded, onToggle }: { thinking: string; isE
       <button
         onClick={onToggle}
         className="w-full flex items-center gap-2 px-3 py-2 hover:bg-surface/50 transition-colors"
+        style={{ color: 'var(--chat-text)' }}
       >
         <Brain className="w-4 h-4 text-accent" />
         <span className="text-sm font-medium">Thinking</span>
-        <div className="ml-auto">
+        <div className="ml-auto" style={{ color: 'var(--chat-text-secondary)' }}>
           {isExpanded ? (
-            <ChevronDown className="w-4 h-4 text-zinc-500" />
+            <ChevronDown className="w-4 h-4" />
           ) : (
-            <ChevronRight className="w-4 h-4 text-zinc-500" />
+            <ChevronRight className="w-4 h-4" />
           )}
         </div>
       </button>
@@ -476,7 +482,7 @@ function ThinkingBox({ thinking, isExpanded, onToggle }: { thinking: string; isE
             exit={{ height: 0, opacity: 0 }}
             className="border-t border-surface-border"
           >
-            <p className="px-3 py-2 text-xs text-zinc-400 font-mono">{thinking}</p>
+            <p className="px-3 py-2 text-xs font-mono" style={{ color: 'var(--chat-text-secondary)' }}>{thinking}</p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -487,12 +493,6 @@ function ThinkingBox({ thinking, isExpanded, onToggle }: { thinking: string; isE
 function ToolCallCard({ tool }: { tool: DemoToolCall }) {
   const [isExpanded, setIsExpanded] = useState(false)
 
-  const statusColors = {
-    pending: 'text-zinc-500',
-    running: 'text-accent',
-    complete: 'text-emerald-400',
-  }
-
   return (
     <div className={clsx(
       'rounded-lg border border-surface-border overflow-hidden',
@@ -501,19 +501,25 @@ function ToolCallCard({ tool }: { tool: DemoToolCall }) {
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full flex items-center gap-2 px-3 py-2 hover:bg-surface/50 transition-colors"
+        style={{ color: 'var(--chat-text)' }}
       >
-        <Wrench className={clsx('w-4 h-4', statusColors[tool.status])} />
+        <Wrench
+          className="w-4 h-4"
+          style={{ color: tool.status === 'pending' ? 'var(--chat-text-secondary)' : tool.status === 'running' ? 'var(--accent)' : '#34d399' }}
+        />
         <span className="text-sm font-medium font-mono">{tool.name}</span>
         {tool.status === 'running' ? (
           <Loader2 className="w-4 h-4 ml-auto text-accent animate-spin" />
         ) : tool.status === 'complete' ? (
           <CheckCircle className="w-4 h-4 ml-auto text-emerald-400" />
         ) : null}
-        {isExpanded ? (
-          <ChevronDown className="w-4 h-4 text-zinc-500" />
-        ) : (
-          <ChevronRight className="w-4 h-4 text-zinc-500" />
-        )}
+        <div style={{ color: 'var(--chat-text-secondary)' }}>
+          {isExpanded ? (
+            <ChevronDown className="w-4 h-4" />
+          ) : (
+            <ChevronRight className="w-4 h-4" />
+          )}
+        </div>
       </button>
       <AnimatePresence>
         {isExpanded && (
@@ -523,7 +529,7 @@ function ToolCallCard({ tool }: { tool: DemoToolCall }) {
             exit={{ height: 0 }}
             className="border-t border-surface-border bg-surface overflow-hidden"
           >
-            <pre className="p-3 text-xs font-mono text-zinc-400 overflow-x-auto">
+            <pre className="p-3 text-xs font-mono overflow-x-auto" style={{ color: 'var(--chat-text-secondary)' }}>
               {JSON.stringify(tool.input, null, 2)}
             </pre>
           </motion.div>
@@ -1359,16 +1365,18 @@ function ChatDemo() {
     setStreamingThinking('') // Ensure streaming state is cleared
   }
 
-  // Configurable panel ratio (default 40% chat / 60% artifact like Vith)
-  const chatRatio = 40
-  const artifactRatio = 60
-
   return (
     <div className="flex-1 flex min-h-0">
       {/* Chat */}
       <div
-        className="flex flex-col min-w-0"
-        style={{ flex: `${chatRatio} 0 0%` }}
+        className={clsx(
+          'flex flex-col min-w-0 transition-all duration-200',
+          !showArtifactPanel && 'mx-auto'
+        )}
+        style={{
+          flex: showArtifactPanel ? '1 1 40%' : '1 1 100%',
+          maxWidth: showArtifactPanel ? undefined : '800px',
+        }}
       >
         <div className="flex-1 overflow-y-auto">
           {messages.map(message => (
@@ -1450,7 +1458,8 @@ function ChatDemo() {
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
               placeholder="Try: analyze, code, spreadsheet, search, build, image, deploy..."
               disabled={isProcessing}
-              className="flex-1 px-4 py-3 rounded-xl border border-surface-border bg-surface-elevated text-sm placeholder:text-zinc-600 focus:outline-none focus:border-accent transition-colors disabled:opacity-50"
+              className="flex-1 px-4 py-3 rounded-xl border border-surface-border bg-surface-elevated text-sm focus:outline-none focus:border-accent transition-colors disabled:opacity-50"
+              style={{ color: 'var(--chat-text)' }}
             />
             {isProcessing ? (
               <button
@@ -1480,8 +1489,9 @@ function ChatDemo() {
                   ? 'bg-accent/20 text-accent'
                   : currentArtifact
                     ? 'bg-accent text-white animate-pulse'
-                    : 'bg-surface-elevated text-zinc-400 hover:text-white'
+                    : 'bg-surface-elevated'
               )}
+              style={{ color: showArtifactPanel || currentArtifact ? undefined : 'var(--chat-text-secondary)' }}
               title={showArtifactPanel ? 'Hide artifact panel' : 'Show artifact panel'}
             >
               <PanelRight className="w-5 h-5" />
@@ -1491,20 +1501,14 @@ function ChatDemo() {
       </div>
 
       {/* Artifact Panel */}
-      <AnimatePresence>
-        {showArtifactPanel && (
-          <motion.div
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 'auto', opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="border-l border-surface-border bg-surface-elevated"
-            style={{ flex: `${artifactRatio} 0 0%`, minWidth: showArtifactPanel ? '300px' : 0 }}
-          >
-            <ArtifactPanel artifact={currentArtifact} onClose={() => setCurrentArtifact(null)} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {showArtifactPanel && (
+        <div
+          className="border-l bg-surface-elevated flex-1 min-w-[300px]"
+          style={{ borderColor: 'var(--surface-border)', background: 'var(--surface-elevated)' }}
+        >
+          <ArtifactPanel artifact={currentArtifact} onClose={() => setCurrentArtifact(null)} />
+        </div>
+      )}
     </div>
   )
 }
@@ -2499,9 +2503,9 @@ export default function App() {
   const [page, setPage] = useState('home')
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
 
-  // Apply theme class to document
+  // Apply theme class to document (matches library's .chat-theme-light)
   useEffect(() => {
-    document.documentElement.classList.toggle('light', theme === 'light')
+    document.documentElement.classList.toggle('chat-theme-light', theme === 'light')
   }, [theme])
 
   const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark')

@@ -8,14 +8,14 @@ export default {
     extend: {
       colors: {
         accent: {
-          DEFAULT: '#a855f7',
-          light: '#c084fc',
-          dark: '#7c3aed',
+          DEFAULT: 'var(--accent)',
+          light: 'var(--accent-light)',
+          dark: 'var(--accent-dark)',
         },
         surface: {
-          DEFAULT: '#0a0a0f',
-          elevated: '#12121a',
-          border: '#1e1e2e',
+          DEFAULT: 'var(--surface)',
+          elevated: 'var(--surface-elevated)',
+          border: 'var(--surface-border)',
         }
       },
       fontFamily: {

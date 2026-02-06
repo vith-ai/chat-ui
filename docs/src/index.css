@@ -23,8 +23,8 @@
   --chat-error: #ef4444;
 }
 
-/* Light theme */
-.light {
+/* Light theme - matches library's .chat-theme-light pattern */
+.chat-theme-light {
   --accent: #9333ea;
   --accent-light: #a855f7;
   --accent-dark: #7c3aed;
@@ -44,31 +44,31 @@
   --chat-error: #dc2626;
 }
 
-.light body,
-.light {
+.chat-theme-light body,
+.chat-theme-light {
   background: var(--surface);
   color: var(--chat-text);
 }
 
-.light .gradient-mesh {
+.chat-theme-light .gradient-mesh {
   background:
     radial-gradient(ellipse 80% 50% at 20% 40%, rgba(147, 51, 234, 0.08), transparent),
     radial-gradient(ellipse 60% 40% at 80% 20%, rgba(124, 58, 237, 0.05), transparent),
     radial-gradient(ellipse 50% 50% at 50% 80%, rgba(192, 132, 252, 0.04), transparent);
 }
 
-.light .grid-pattern {
+.chat-theme-light .grid-pattern {
   background-image:
     linear-gradient(rgba(147, 51, 234, 0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(147, 51, 234, 0.05) 1px, transparent 1px);
   background-size: 60px 60px;
 }
 
-.light ::-webkit-scrollbar-thumb {
+.chat-theme-light ::-webkit-scrollbar-thumb {
   background: #d4d4d8;
 }
 
-.light ::-webkit-scrollbar-thumb:hover {
+.chat-theme-light ::-webkit-scrollbar-thumb:hover {
   background: #a1a1aa;
 }
 
@@ -83,10 +83,17 @@ html {
 body {
   margin: 0;
   background: var(--surface);
-  color: #fafafa;
+  color: var(--chat-text);
   font-family: 'Satoshi', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Form element theming */
+input::placeholder,
+textarea::placeholder {
+  color: var(--chat-text-secondary);
+  opacity: 0.6;
 }
 
 /* Custom scrollbar */
