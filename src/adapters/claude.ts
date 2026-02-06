@@ -54,7 +54,6 @@ export function createClaudeAdapter(config: ClaudeConfig = {}): ChatAdapter {
     maxTokens = 4096,
     enableThinking = false,
     systemPrompt,
-    timeout = 60000,
     headers = {},
   } = config
 

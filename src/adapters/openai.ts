@@ -61,7 +61,6 @@ export function createOpenAIAdapter(config: OpenAIConfig = {}): ChatAdapter {
     temperature = 0.7,
     systemPrompt,
     organization,
-    timeout = 60000,
     headers = {},
   } = config
 

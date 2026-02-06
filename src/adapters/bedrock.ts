@@ -11,7 +11,7 @@
  * Note: Requires AWS credentials configured (env vars, IAM role, or explicit config)
  */
 
-import type { ChatMessage, ChatAdapter, ProviderConfig, ToolCall } from '../types'
+import type { ChatAdapter, ProviderConfig, ToolCall } from '../types'
 import { generateId } from '../utils'
 
 export interface BedrockConfig extends ProviderConfig {
@@ -42,31 +42,16 @@ export function createBedrockAdapter(config: BedrockConfig = {}): ChatAdapter {
   const {
     region = 'us-east-1',
     model = 'anthropic.claude-3-sonnet-20240229-v1:0',
-    accessKeyId,
-    secretAccessKey,
-    sessionToken,
     maxTokens = 4096,
     systemPrompt,
   } = config
 
   // Note: In a real implementation, you'd use AWS SDK v3
   // This is a simplified version showing the structure
-
-  const getCredentials = () => {
-    const akid = accessKeyId || process.env?.AWS_ACCESS_KEY_ID
-    const secret = secretAccessKey || process.env?.AWS_SECRET_ACCESS_KEY
-    const token = sessionToken || process.env?.AWS_SESSION_TOKEN
-
-    if (!akid || !secret) {
-      throw new Error('AWS credentials not configured')
-    }
-
-    return { akid, secret, token }
-  }
+  // Credentials: accessKeyId, secretAccessKey, sessionToken (or env vars)
 
   const isClaude = model.includes('anthropic.claude')
   const isTitan = model.includes('amazon.titan')
-  const isLlama = model.includes('meta.llama')
 
   return {
     providerName: 'AWS Bedrock',
@@ -78,8 +63,9 @@ export function createBedrockAdapter(config: BedrockConfig = {}): ChatAdapter {
     },
 
     async sendMessage(messages, options = {}) {
-      const { onStream, onThinking, onToolCall, signal } = options
-      const { akid, secret, token } = getCredentials()
+      const { onStream, onThinking, signal } = options
+      // Note: AWS credentials (getCredentials()) would be used for signing in production
+      // with @aws-sdk/client-bedrock-runtime. This is a simplified example.
 
       // Build the request based on model type
       let body: string

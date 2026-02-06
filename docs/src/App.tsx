@@ -944,6 +944,9 @@ function DocsPage({ onNavigate }: { onNavigate: (page: string) => void }) {
     { id: 'adapters', label: 'Model Adapters' },
     { id: 'components', label: 'Components' },
     { id: 'hooks', label: 'Hooks' },
+    { id: 'conversations', label: 'Conversations' },
+    { id: 'artifacts', label: 'Artifacts' },
+    { id: 'permissions', label: 'Permissions' },
     { id: 'customization', label: 'Customization' },
     { id: 'theming', label: 'Theming' },
     { id: 'recipes', label: 'Recipes' },
@@ -1000,6 +1003,9 @@ function DocsPage({ onNavigate }: { onNavigate: (page: string) => void }) {
           {activeSection === 'adapters' && <AdaptersSection />}
           {activeSection === 'components' && <ComponentsSection />}
           {activeSection === 'hooks' && <HooksSection />}
+          {activeSection === 'conversations' && <ConversationsSection />}
+          {activeSection === 'artifacts' && <ArtifactsSection />}
+          {activeSection === 'permissions' && <PermissionsSection />}
           {activeSection === 'customization' && <CustomizationSection />}
           {activeSection === 'theming' && <ThemingSection />}
           {activeSection === 'recipes' && <RecipesSection />}
@@ -1283,6 +1289,264 @@ const handleSend = async (content) => {
 }
 
 <ChatContainer messages={chat.messages} onSend={handleSend} />`} />
+      </div>
+    </div>
+  )
+}
+
+function ConversationsSection() {
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold mb-2">Conversation Management</h1>
+        <p className="text-zinc-400">Manage multiple conversations with persistence.</p>
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">useConversations Hook</h2>
+        <CodeBlock code={`import { useConversations, useChat } from '@vith-ai/chat-ui'
+
+function ChatApp() {
+  const conversations = useConversations()
+  const chat = useChat({ adapter })
+
+  return (
+    <div className="flex">
+      <aside>
+        <button onClick={() => conversations.createConversation()}>
+          New Chat
+        </button>
+        {conversations.conversations.map(conv => (
+          <button
+            key={conv.id}
+            onClick={() => conversations.selectConversation(conv.id)}
+          >
+            {conv.title}
+          </button>
+        ))}
+      </aside>
+      <ChatContainer messages={chat.messages} onSend={chat.sendMessage} />
+    </div>
+  )
+}`} />
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Custom Storage Backend</h2>
+        <p className="text-sm text-zinc-400 mb-3">
+          By default, conversations are stored in localStorage. For production, implement a custom store.
+        </p>
+        <CodeBlock code={`import type { ConversationStore } from '@vith-ai/chat-ui'
+
+// Example: Supabase backend
+const supabaseStore: ConversationStore = {
+  async list() {
+    const { data } = await supabase
+      .from('conversations')
+      .select('*')
+      .order('updated_at', { ascending: false })
+    return data
+  },
+  async get(id) { /* ... */ },
+  async create(title) { /* ... */ },
+  async update(id, updates) { /* ... */ },
+  async delete(id) { /* ... */ },
+}
+
+const conversations = useConversations({ store: supabaseStore })`} />
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Available Stores</h2>
+        <div className="grid gap-2 text-sm">
+          <div className="p-3 rounded-lg bg-surface-elevated border border-surface-border">
+            <code className="text-accent">createLocalStorageStore(key?)</code>
+            <p className="text-zinc-500 mt-1">Browser localStorage (default)</p>
+          </div>
+          <div className="p-3 rounded-lg bg-surface-elevated border border-surface-border">
+            <code className="text-accent">createMemoryStore()</code>
+            <p className="text-zinc-500 mt-1">In-memory (SSR/testing)</p>
+          </div>
+          <div className="p-3 rounded-lg bg-surface-elevated border border-surface-border">
+            <code className="text-accent">ConversationStore</code>
+            <p className="text-zinc-500 mt-1">Interface for custom backends</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ArtifactsSection() {
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold mb-2">Artifact System</h1>
+        <p className="text-zinc-400">Display rich content with pluggable renderers.</p>
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Artifact Registry</h2>
+        <CodeBlock code={`import { ArtifactRegistry, createArtifact } from '@vith-ai/chat-ui'
+
+const registry = new ArtifactRegistry()
+
+// Register custom renderers
+registry.register({
+  types: ['code'],
+  render: (artifact) => (
+    <SyntaxHighlighter language={artifact.language}>
+      {artifact.content}
+    </SyntaxHighlighter>
+  ),
+})
+
+registry.register({
+  types: ['markdown'],
+  render: (artifact) => <ReactMarkdown>{artifact.content}</ReactMarkdown>,
+})
+
+registry.register({
+  types: ['spreadsheet', 'csv'],
+  render: (artifact) => <Handsontable data={parseCSV(artifact.content)} />,
+})`} />
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Optional Dependencies</h2>
+        <p className="text-sm text-zinc-400 mb-3">
+          Install these packages to enable rich artifact rendering:
+        </p>
+        <div className="grid gap-2 text-sm">
+          {[
+            { pkg: 'shiki', purpose: 'Syntax highlighting' },
+            { pkg: 'react-markdown', purpose: 'Markdown rendering' },
+            { pkg: '@handsontable/react', purpose: 'Spreadsheets' },
+            { pkg: 'react-pdf', purpose: 'PDF viewing' },
+            { pkg: 'mermaid', purpose: 'Diagrams' },
+          ].map(({ pkg, purpose }) => (
+            <div key={pkg} className="flex justify-between p-2 rounded-lg bg-surface-elevated border border-surface-border">
+              <code className="text-accent">{pkg}</code>
+              <span className="text-zinc-500">{purpose}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Creating Artifacts</h2>
+        <CodeBlock code={`import { createArtifact, detectArtifactType } from '@vith-ai/chat-ui'
+
+// Explicit type
+const codeArtifact = createArtifact(code, {
+  title: 'Button.tsx',
+  type: 'code',
+  language: 'typescript',
+})
+
+// Auto-detect from filename
+const artifact = createArtifact(content, {
+  filename: 'data.csv',  // Detects as 'csv'
+})
+
+// Supported types:
+// 'code' | 'markdown' | 'image' | 'html' | 'csv' |
+// 'json' | 'pdf' | 'spreadsheet' | 'custom'`} />
+      </div>
+    </div>
+  )
+}
+
+function PermissionsSection() {
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold mb-2">Permission System</h1>
+        <p className="text-zinc-400">Configure approval flows for sensitive tool operations.</p>
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Permission Levels</h2>
+        <div className="grid gap-2 text-sm">
+          {[
+            { level: 'auto', desc: 'Execute immediately, no notification', color: 'text-emerald-400' },
+            { level: 'notify', desc: 'Execute immediately, show notification', color: 'text-blue-400' },
+            { level: 'confirm', desc: 'Show ApprovalCard, wait for user approval', color: 'text-amber-400' },
+            { level: 'deny', desc: 'Never execute, return error', color: 'text-red-400' },
+          ].map(({ level, desc, color }) => (
+            <div key={level} className="flex items-center gap-3 p-2 rounded-lg bg-surface-elevated border border-surface-border">
+              <code className={color}>{level}</code>
+              <span className="text-zinc-500">{desc}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Tool Registry</h2>
+        <CodeBlock code={`import { createToolRegistry, commonTools } from '@vith-ai/chat-ui'
+
+// Start with common tools (read_file, write_file, run_shell, etc.)
+const registry = createToolRegistry(commonTools)
+
+// Register custom tools
+registry.register({
+  name: 'deploy_production',
+  description: 'Deploy to production servers',
+  permission: 'confirm',
+  risk: 'high',
+  categories: ['deployment'],
+})
+
+// Check permissions
+if (registry.requiresConfirmation('write_file')) {
+  // Show ApprovalCard
+}
+
+// Update permissions at runtime
+registry.setPermission('read_file', 'auto')`} />
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Permission Presets</h2>
+        <CodeBlock code={`import { permissionPresets } from '@vith-ai/chat-ui'
+
+// Available presets:
+permissionPresets.permissive  // Allow all (dev/testing)
+permissionPresets.standard    // Confirm writes, auto reads
+permissionPresets.strict      // Confirm everything
+permissionPresets.noExecution // Deny code/shell execution
+
+// Use in config
+const config = {
+  ...permissionPresets.standard,
+  toolPermissions: {
+    'delete_file': 'deny',  // Override specific tools
+  },
+}`} />
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Handling Approvals</h2>
+        <CodeBlock code={`function handleToolCall(toolCall) {
+  const permission = registry.getPermission(toolCall.name)
+
+  if (permission === 'deny') {
+    return { error: 'Action not allowed' }
+  }
+
+  if (permission === 'confirm') {
+    setPendingApproval({
+      id: toolCall.id,
+      action: toolCall.name,
+      risk: 'high',
+      details: JSON.stringify(toolCall.input),
+    })
+    return // Wait for user
+  }
+
+  return executeToolCall(toolCall)
+}`} />
       </div>
     </div>
   )

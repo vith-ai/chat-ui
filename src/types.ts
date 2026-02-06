@@ -3,6 +3,8 @@
  * These are model-agnostic and work with any LLM provider
  */
 
+import type { ReactNode } from 'react'
+
 export type MessageRole = 'user' | 'assistant' | 'system'
 
 export type ToolCallStatus = 'pending' | 'running' | 'complete' | 'error'
@@ -176,4 +178,107 @@ export interface ChatAdapter {
     thinking: boolean
     toolUse: boolean
   }
+}
+
+// ============ Conversation Management ============
+
+export interface Conversation {
+  /** Unique identifier */
+  id: string
+  /** Display title (auto-generated or user-set) */
+  title: string
+  /** Messages in this conversation */
+  messages: ChatMessage[]
+  /** Creation timestamp */
+  createdAt: Date
+  /** Last updated timestamp */
+  updatedAt: Date
+  /** Optional metadata */
+  metadata?: Record<string, unknown>
+}
+
+export interface ConversationStore {
+  /** Get all conversations */
+  list(): Promise<Conversation[]>
+  /** Get a single conversation by ID */
+  get(id: string): Promise<Conversation | null>
+  /** Create a new conversation */
+  create(title?: string): Promise<Conversation>
+  /** Update a conversation */
+  update(id: string, updates: Partial<Pick<Conversation, 'title' | 'messages' | 'metadata'>>): Promise<Conversation>
+  /** Delete a conversation */
+  delete(id: string): Promise<void>
+}
+
+// ============ Artifact System ============
+
+export type ArtifactType = 'code' | 'markdown' | 'image' | 'html' | 'csv' | 'json' | 'pdf' | 'spreadsheet' | 'custom'
+
+export interface Artifact {
+  /** Unique identifier */
+  id: string
+  /** Type of artifact */
+  type: ArtifactType
+  /** Display title */
+  title: string
+  /** Raw content */
+  content: string
+  /** Language for code artifacts */
+  language?: string
+  /** MIME type */
+  mimeType?: string
+  /** Optional metadata */
+  metadata?: Record<string, unknown>
+}
+
+export interface ArtifactRenderer {
+  /** Types this renderer handles */
+  types: ArtifactType[]
+  /** Render the artifact */
+  render: (artifact: Artifact) => ReactNode
+  /** Optional: Check if this renderer can handle a specific artifact */
+  canRender?: (artifact: Artifact) => boolean
+}
+
+// ============ Tool & Permission System ============
+
+export type PermissionLevel = 'auto' | 'notify' | 'confirm' | 'deny'
+
+export interface ToolDefinition {
+  /** Unique tool name */
+  name: string
+  /** Human-readable description */
+  description: string
+  /** Permission level required */
+  permission: PermissionLevel
+  /** Risk level for UI display */
+  risk?: ApprovalRisk
+  /** JSON Schema for input parameters */
+  inputSchema?: Record<string, unknown>
+  /** Categories/tags for grouping */
+  categories?: string[]
+}
+
+export interface ToolRegistry {
+  /** All registered tools */
+  tools: ToolDefinition[]
+  /** Get permission level for a tool */
+  getPermission(toolName: string): PermissionLevel
+  /** Check if tool requires confirmation */
+  requiresConfirmation(toolName: string): boolean
+  /** Register a new tool */
+  register(tool: ToolDefinition): void
+  /** Update tool permission */
+  setPermission(toolName: string, level: PermissionLevel): void
+}
+
+export interface PermissionConfig {
+  /** Default permission for unregistered tools */
+  defaultPermission: PermissionLevel
+  /** Tool-specific overrides */
+  toolPermissions?: Record<string, PermissionLevel>
+  /** Category-based permissions */
+  categoryPermissions?: Record<string, PermissionLevel>
+  /** Callback when permission is requested */
+  onPermissionRequest?: (tool: ToolDefinition, action: string) => Promise<boolean>
 }

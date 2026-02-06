@@ -23,7 +23,7 @@ export interface ToolCallCardProps {
   renderOutput?: (output: unknown) => React.ReactNode
 }
 
-const statusConfig = {
+const statusConfig: Record<string, { icon: typeof Clock; color: string; bgColor: string; label: string; animate?: boolean }> = {
   pending: {
     icon: Clock,
     color: 'text-[var(--chat-text-secondary)]',

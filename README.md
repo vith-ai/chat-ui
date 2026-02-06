@@ -2,12 +2,20 @@
 
 Beautiful, model-agnostic React components for building agentic chat interfaces.
 
+[![npm version](https://img.shields.io/npm/v/@vith-ai/chat-ui.svg)](https://www.npmjs.com/package/@vith-ai/chat-ui)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 ![Chat UI Demo](https://chat-ui.vith.ai/og.png)
+
+**[Live Demo](https://chat-ui.vith.ai)** · **[Documentation](https://chat-ui.vith.ai/docs)**
 
 ## Features
 
 - **Model Agnostic** - Works with Claude, OpenAI, Bedrock, Ollama, OpenRouter, and any LLM
-- **Agentic Patterns** - Built-in components for tool calls, thinking, tasks, and approvals
+- **Agentic Patterns** - Built-in components for tool calls, thinking, tasks, approvals, and diffs
+- **Conversation Management** - Hooks for managing multiple conversations with persistence
+- **Artifact System** - Pluggable renderers for code, markdown, images, and custom types
+- **Permission System** - Configurable approval flows for sensitive tool operations
 - **Fully Themeable** - CSS variables for complete customization
 - **TypeScript First** - Full type safety and great DX
 - **Streaming Ready** - First-class support for streaming responses
@@ -50,24 +58,160 @@ function App() {
 }
 ```
 
+## Model Adapters
+
+Pre-built adapters for popular providers:
+
+### Claude / Anthropic
+
+```tsx
+import { createClaudeAdapter } from '@vith-ai/chat-ui/adapters/claude'
+
+const adapter = createClaudeAdapter({
+  apiKey: 'sk-ant-...',
+  model: 'claude-sonnet-4-20250514',  // or claude-3-opus, claude-3-haiku
+  maxTokens: 4096,
+  enableThinking: true,  // Enable extended thinking (Claude only)
+  systemPrompt: 'You are a helpful assistant.',
+})
+```
+
+### OpenAI
+
+```tsx
+import { createOpenAIAdapter } from '@vith-ai/chat-ui/adapters/openai'
+
+const adapter = createOpenAIAdapter({
+  apiKey: 'sk-...',
+  model: 'gpt-4o',
+})
+
+// Also works with Azure OpenAI
+const azureAdapter = createOpenAIAdapter({
+  apiKey: process.env.AZURE_OPENAI_KEY,
+  baseUrl: 'https://your-resource.openai.azure.com/openai/deployments/your-deployment',
+})
+
+// And Groq, Together, etc.
+const groqAdapter = createOpenAIAdapter({
+  apiKey: process.env.GROQ_API_KEY,
+  baseUrl: 'https://api.groq.com/openai/v1',
+  model: 'llama-3.1-70b-versatile',
+})
+```
+
+### AWS Bedrock
+
+```tsx
+import { createBedrockAdapter } from '@vith-ai/chat-ui/adapters/bedrock'
+
+const adapter = createBedrockAdapter({
+  region: 'us-east-1',
+  model: 'anthropic.claude-3-sonnet-20240229-v1:0',
+  // Uses AWS SDK credentials from environment
+})
+```
+
+### OpenRouter
+
+```tsx
+import { createOpenRouterAdapter } from '@vith-ai/chat-ui/adapters/openrouter'
+
+const adapter = createOpenRouterAdapter({
+  apiKey: 'sk-or-...',
+  model: 'anthropic/claude-3-opus',  // Access 100+ models
+})
+```
+
+### Ollama (Local)
+
+```tsx
+import { createOllamaAdapter } from '@vith-ai/chat-ui/adapters/ollama'
+
+const adapter = createOllamaAdapter({
+  model: 'llama3',
+  baseUrl: 'http://localhost:11434',  // Default Ollama URL
+})
+```
+
+### Custom Adapter
+
+```tsx
+import type { ChatAdapter, ChatMessage } from '@vith-ai/chat-ui'
+
+const customAdapter: ChatAdapter = {
+  providerName: 'My API',
+  features: {
+    streaming: true,
+    thinking: false,
+    toolUse: true,
+  },
+
+  async sendMessage(messages, options) {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages }),
+      signal: options?.signal,
+    })
+
+    // Handle streaming if needed
+    if (options?.onStream) {
+      const reader = response.body?.getReader()
+      // ... process stream
+    }
+
+    const data = await response.json()
+    return {
+      id: data.id,
+      role: 'assistant',
+      content: data.content,
+    }
+  },
+}
+```
+
 ## Components
 
 ### ChatContainer
 
-The main container component that combines all chat UI elements.
+The main container that combines all chat elements:
 
 ```tsx
 <ChatContainer
+  // Required
   messages={messages}
+  onSend={(message) => sendMessage(message)}
+
+  // Optional - state
   isProcessing={isProcessing}
   thinkingText={thinkingText}
   tasks={tasks}
   pendingQuestion={pendingQuestion}
-  onSend={(message) => sendMessage(message)}
+
+  // Optional - callbacks
   onStop={() => stopProcessing()}
   onAnswerQuestion={(answer) => answerQuestion(answer)}
+
+  // Optional - customization
   toolRenderers={{
-    'my_tool': (toolCall) => <MyCustomToolUI toolCall={toolCall} />
+    'search': (toolCall) => <SearchResults {...toolCall} />,
+    'run_code': (toolCall) => <CodeOutput {...toolCall} />,
+  }}
+  assistantAvatar={<BotIcon />}
+  userAvatar={<UserIcon />}
+  welcomeMessage={<WelcomeScreen />}
+
+  // Optional - layout
+  layout={{
+    chatRatio: 40,      // Chat panel width (%)
+    artifactRatio: 60,  // Artifact panel width (%)
+  }}
+
+  // Optional - theming
+  theme={{
+    accent: '#a855f7',
+    bg: '#0a0a0f',
   }}
 />
 ```
@@ -78,45 +222,280 @@ Use components individually for more control:
 
 ```tsx
 import {
-  MessageBubble,
-  ThinkingBox,
-  ToolCallCard,
-  TodoBox,
-  ApprovalCard,
-  DiffView,
-  QuestionCard,
+  MessageBubble,    // Single message display
+  ThinkingBox,      // Collapsible thinking/reasoning
+  ToolCallCard,     // Tool execution with status
+  TodoBox,          // Task progress list
+  ApprovalCard,     // Permission request UI
+  DiffView,         // Code diff visualization
+  QuestionCard,     // Multiple choice questions
 } from '@vith-ai/chat-ui'
 ```
 
-## Adapters
+## Conversation Management
 
-Pre-built adapters for popular providers:
+Manage multiple conversations with built-in persistence:
 
 ```tsx
-// Claude / Anthropic
-import { createClaudeAdapter } from '@vith-ai/chat-ui/adapters/claude'
+import { useConversations, useChat } from '@vith-ai/chat-ui'
 
-// OpenAI (also works with Azure OpenAI, Groq, Together)
-import { createOpenAIAdapter } from '@vith-ai/chat-ui/adapters/openai'
+function ChatApp() {
+  const conversations = useConversations({
+    // Uses localStorage by default
+    // Pass custom store for database persistence
+  })
 
-// AWS Bedrock
-import { createBedrockAdapter } from '@vith-ai/chat-ui/adapters/bedrock'
+  const chat = useChat({
+    adapter,
+    // Sync with conversation
+    initialMessages: conversations.currentConversation?.messages || [],
+    onResponse: () => {
+      conversations.updateMessages(chat.messages)
+    },
+  })
 
-// OpenRouter (100+ models)
-import { createOpenRouterAdapter } from '@vith-ai/chat-ui/adapters/openrouter'
+  return (
+    <div className="flex">
+      {/* Conversation sidebar */}
+      <aside>
+        <button onClick={() => conversations.createConversation()}>
+          New Chat
+        </button>
+        {conversations.conversations.map(conv => (
+          <button
+            key={conv.id}
+            onClick={() => conversations.selectConversation(conv.id)}
+          >
+            {conv.title}
+          </button>
+        ))}
+      </aside>
 
-// Ollama (local models)
-import { createOllamaAdapter } from '@vith-ai/chat-ui/adapters/ollama'
+      {/* Chat area */}
+      <ChatContainer
+        messages={chat.messages}
+        onSend={chat.sendMessage}
+      />
+    </div>
+  )
+}
+```
+
+### Custom Storage Backend
+
+```tsx
+import type { ConversationStore } from '@vith-ai/chat-ui'
+
+// Example: Supabase backend
+const supabaseStore: ConversationStore = {
+  async list() {
+    const { data } = await supabase
+      .from('conversations')
+      .select('*')
+      .order('updated_at', { ascending: false })
+    return data
+  },
+
+  async get(id) {
+    const { data } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('id', id)
+      .single()
+    return data
+  },
+
+  async create(title) {
+    const { data } = await supabase
+      .from('conversations')
+      .insert({ title: title || 'New conversation' })
+      .select()
+      .single()
+    return data
+  },
+
+  async update(id, updates) {
+    const { data } = await supabase
+      .from('conversations')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+    return data
+  },
+
+  async delete(id) {
+    await supabase.from('conversations').delete().eq('id', id)
+  },
+}
+
+// Use custom store
+const conversations = useConversations({ store: supabaseStore })
+```
+
+## Artifact System
+
+Display rich content with pluggable renderers:
+
+```tsx
+import {
+  ArtifactRegistry,
+  createArtifact,
+  detectArtifactType,
+} from '@vith-ai/chat-ui'
+
+// Create registry and register custom renderers
+const registry = new ArtifactRegistry()
+
+// Register a code renderer with syntax highlighting
+// Requires: npm install shiki
+registry.register({
+  types: ['code'],
+  render: (artifact) => (
+    <SyntaxHighlighter language={artifact.language}>
+      {artifact.content}
+    </SyntaxHighlighter>
+  ),
+})
+
+// Register markdown renderer
+// Requires: npm install react-markdown
+registry.register({
+  types: ['markdown'],
+  render: (artifact) => (
+    <ReactMarkdown>{artifact.content}</ReactMarkdown>
+  ),
+})
+
+// Register spreadsheet renderer
+// Requires: npm install @handsontable/react handsontable
+registry.register({
+  types: ['spreadsheet', 'csv'],
+  render: (artifact) => (
+    <Handsontable data={parseCSV(artifact.content)} />
+  ),
+})
+
+// Register image renderer
+registry.register({
+  types: ['image'],
+  render: (artifact) => (
+    <img src={artifact.content} alt={artifact.title} />
+  ),
+})
+
+// Create artifacts
+const codeArtifact = createArtifact(code, {
+  title: 'Button.tsx',
+  type: 'code',
+  language: 'typescript',
+})
+
+// Auto-detect type from filename
+const artifact = createArtifact(content, {
+  filename: 'data.csv',  // Will detect as 'csv' type
+})
+```
+
+### Built-in vs Optional Dependencies
+
+The library includes built-in renderers for basic display. For enhanced rendering, install optional dependencies:
+
+| Feature | Package | Purpose |
+|---------|---------|---------|
+| Syntax highlighting | `shiki` or `prism-react-renderer` | Code highlighting |
+| Markdown | `react-markdown` | Rich markdown rendering |
+| Spreadsheets | `@handsontable/react` + `handsontable` | Excel-like grids |
+| PDFs | `react-pdf` | PDF viewing |
+| Diagrams | `mermaid` | Flowcharts, diagrams |
+
+## Permission System
+
+Configure approval flows for sensitive operations:
+
+```tsx
+import {
+  createToolRegistry,
+  commonTools,
+  permissionPresets,
+} from '@vith-ai/chat-ui'
+
+// Create registry with common tools
+const toolRegistry = createToolRegistry(commonTools)
+
+// Or define custom tools
+toolRegistry.register({
+  name: 'deploy_production',
+  description: 'Deploy to production servers',
+  permission: 'confirm',  // 'auto' | 'notify' | 'confirm' | 'deny'
+  risk: 'high',           // 'low' | 'medium' | 'high'
+  categories: ['deployment'],
+})
+
+// Use permission presets
+const config = {
+  ...permissionPresets.standard,  // Sensible defaults
+  toolPermissions: {
+    'read_file': 'auto',      // No confirmation needed
+    'write_file': 'confirm',  // Requires user approval
+    'run_shell': 'confirm',   // Requires user approval
+    'delete_file': 'deny',    // Never allow
+  },
+}
+
+// In your chat handler
+function handleToolCall(toolCall) {
+  const permission = toolRegistry.getPermission(toolCall.name)
+
+  if (permission === 'deny') {
+    return { error: 'This action is not allowed' }
+  }
+
+  if (permission === 'confirm') {
+    // Show ApprovalCard and wait for user response
+    setPendingApproval({
+      id: toolCall.id,
+      action: toolCall.name,
+      risk: toolRegistry.tools.find(t => t.name === toolCall.name)?.risk || 'medium',
+      details: JSON.stringify(toolCall.input),
+    })
+    return // Wait for approval
+  }
+
+  // Auto or notify - execute immediately
+  return executeToolCall(toolCall)
+}
+```
+
+### Permission Levels
+
+| Level | Behavior |
+|-------|----------|
+| `auto` | Execute immediately, no notification |
+| `notify` | Execute immediately, show notification |
+| `confirm` | Show ApprovalCard, wait for user approval |
+| `deny` | Never execute, return error |
+
+### Permission Presets
+
+```tsx
+import { permissionPresets } from '@vith-ai/chat-ui'
+
+// permissionPresets.permissive - Allow everything (dev/testing)
+// permissionPresets.standard - Confirm writes, auto reads
+// permissionPresets.strict - Confirm everything
+// permissionPresets.noExecution - Deny code/shell execution
 ```
 
 ## Theming
 
-Customize with CSS variables:
+### CSS Variables
 
 ```css
 :root {
   --chat-bg: #0a0a0f;
   --chat-surface: #12121a;
+  --chat-surface-elevated: #1a1a24;
   --chat-border: #1e1e2e;
   --chat-text: #fafafa;
   --chat-text-secondary: #a1a1aa;
@@ -126,9 +505,19 @@ Customize with CSS variables:
   --chat-warning: #f59e0b;
   --chat-error: #ef4444;
 }
+
+/* Light theme example */
+.light-theme {
+  --chat-bg: #ffffff;
+  --chat-surface: #f4f4f5;
+  --chat-surface-elevated: #e4e4e7;
+  --chat-border: #d4d4d8;
+  --chat-text: #18181b;
+  --chat-text-secondary: #71717a;
+}
 ```
 
-Or pass a theme object:
+### Theme Prop
 
 ```tsx
 <ChatContainer
@@ -140,33 +529,158 @@ Or pass a theme object:
 />
 ```
 
-## Types
+## TypeScript
+
+Full type definitions included:
 
 ```typescript
-interface ChatMessage {
-  id: string
-  role: 'user' | 'assistant' | 'system'
-  content: string
-  toolCalls?: ToolCall[]
-  thinking?: string
-  timestamp?: Date
-}
+import type {
+  // Core types
+  ChatMessage,
+  MessageRole,
+  ToolCall,
+  ToolCallStatus,
+  TaskItem,
+  TaskStatus,
 
-interface ToolCall {
-  id: string
-  name: string
-  input: Record<string, unknown>
-  output?: unknown
-  status: 'pending' | 'running' | 'complete' | 'error'
-}
+  // Approval & questions
+  ApprovalRequest,
+  ApprovalRisk,
+  PendingQuestion,
+  QuestionOption,
 
-interface TaskItem {
-  id: string
-  label: string
-  status: 'pending' | 'in_progress' | 'completed'
+  // File changes
+  FileChange,
+
+  // Streaming
+  StreamingState,
+
+  // Configuration
+  ChatTheme,
+  ChatAdapter,
+  ProviderConfig,
+
+  // Conversations
+  Conversation,
+  ConversationStore,
+
+  // Artifacts
+  Artifact,
+  ArtifactType,
+  ArtifactRenderer,
+
+  // Permissions
+  ToolDefinition,
+  ToolRegistry,
+  PermissionConfig,
+  PermissionLevel,
+} from '@vith-ai/chat-ui'
+```
+
+## Dependencies
+
+### Required (included)
+
+- `react` >= 18.0.0 (peer dependency)
+- `react-dom` >= 18.0.0 (peer dependency)
+- `clsx` - Conditional classnames
+- `lucide-react` - Icons
+- `diff` - Diff generation for DiffView
+- `dompurify` - HTML sanitization
+
+### Optional (install separately)
+
+```bash
+# Syntax highlighting (choose one)
+npm install shiki                    # Recommended
+npm install prism-react-renderer     # Alternative
+
+# Rich markdown
+npm install react-markdown remark-gfm
+
+# Spreadsheets
+npm install @handsontable/react handsontable hyperformula
+
+# PDF viewing
+npm install react-pdf
+
+# Diagrams
+npm install mermaid
+```
+
+## Browser Support
+
+- Chrome/Edge 88+
+- Firefox 78+
+- Safari 14+
+
+## Examples
+
+### Next.js App Router
+
+```tsx
+// app/chat/page.tsx
+'use client'
+
+import { ChatContainer, useChat, useConversations } from '@vith-ai/chat-ui'
+import { createClaudeAdapter } from '@vith-ai/chat-ui/adapters/claude'
+import '@vith-ai/chat-ui/styles.css'
+
+const adapter = createClaudeAdapter({
+  apiKey: process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY!,
+})
+
+export default function ChatPage() {
+  const conversations = useConversations()
+  const chat = useChat({ adapter })
+
+  return (
+    <div className="h-screen">
+      <ChatContainer
+        messages={chat.messages}
+        isProcessing={chat.isProcessing}
+        onSend={chat.sendMessage}
+        onStop={chat.stopProcessing}
+      />
+    </div>
+  )
 }
 ```
+
+### With Tool Use
+
+```tsx
+const chat = useChat({
+  adapter,
+  tools: [
+    {
+      name: 'search',
+      description: 'Search the web',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string' },
+        },
+      },
+    },
+  ],
+  onToolCall: async (toolCall) => {
+    if (toolCall.name === 'search') {
+      const results = await searchWeb(toolCall.input.query)
+      return { results }
+    }
+  },
+})
+```
+
+## Contributing
+
+Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details.
 
 ## License
 
 MIT © [Vith AI](https://vith.ai)
+
+---
+
+Built with ❤️ by [Vith AI](https://vith.ai)

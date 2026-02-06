@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
-import type { ChatMessage, TaskItem, PendingQuestion, ChatAdapter, ToolCall } from '../types'
+import type { ChatMessage, TaskItem, PendingQuestion, ChatAdapter } from '../types'
 import { generateId } from '../utils'
 
 export interface UseChatOptions {
@@ -95,13 +95,13 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
         const response = await adapter.sendMessage(allMessages, {
           signal: abortControllerRef.current.signal,
-          onStream: (chunk) => {
+          onStream: (_chunk) => {
             // Handle streaming content updates if needed
           },
           onThinking: (thinking) => {
             setThinkingText(thinking)
           },
-          onToolCall: (toolCall: ToolCall) => {
+          onToolCall: (_toolCall) => {
             // Could emit tool calls here
           },
         })
