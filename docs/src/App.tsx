@@ -1125,6 +1125,7 @@ function ChatDemo() {
   ])
   const [input, setInput] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
+  const [streamingThinking, setStreamingThinking] = useState('')
   const [thinkingExpanded, setThinkingExpanded] = useState(true)
   const [currentArtifact, setCurrentArtifact] = useState<Artifact | null>(null)
   const [showArtifactPanel, setShowArtifactPanel] = useState(true)
@@ -1136,7 +1137,7 @@ function ChatDemo() {
 
   useEffect(() => {
     scrollToBottom()
-  }, [messages])
+  }, [messages, streamingThinking])
 
   const handleApproval = (messageId: string, approved: boolean) => {
     setMessages(prev => prev.map(msg => {
@@ -1200,6 +1201,7 @@ function ChatDemo() {
     const userInput = input.toLowerCase()
     setInput('')
     setIsProcessing(true)
+    setStreamingThinking('') // Reset streaming thinking state
 
     // Determine response based on input
     let responseKey = 'default'
@@ -1306,37 +1308,32 @@ function ChatDemo() {
         return [...updated]
       })
     } else {
-      // Simple response - also stream it
+      // Simple response - model real library behavior:
+      // 1. Stream thinking FIRST (shown separately, not in a message)
+      // 2. Then create the assistant message with thinking already complete
+      // 3. Then stream the content
+
+      // Stream thinking separately (like library's thinkingText state)
+      if (response.thinking) {
+        const thinkingWords = response.thinking.split(' ')
+        for (let i = 0; i < thinkingWords.length; i++) {
+          await new Promise(resolve => setTimeout(resolve, 30))
+          setStreamingThinking(thinkingWords.slice(0, i + 1).join(' '))
+        }
+        await new Promise(resolve => setTimeout(resolve, 200))
+      }
+
+      // Now create the assistant message with thinking already populated
       const assistantMessage: DemoMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: '',
+        thinking: response.thinking, // Thinking is complete, attached to message
         artifact: response.artifact,
         question: response.question,
       }
       setMessages(prev => [...prev, assistantMessage])
-
-      // Stream thinking first (if present)
-      if (response.thinking) {
-        setMessages(prev => {
-          const updated = [...prev]
-          const lastMsg = updated[updated.length - 1]
-          lastMsg.thinking = ''
-          return [...updated]
-        })
-
-        const thinkingWords = response.thinking.split(' ')
-        for (let i = 0; i < thinkingWords.length; i++) {
-          await new Promise(resolve => setTimeout(resolve, 30))
-          setMessages(prev => {
-            const updated = [...prev]
-            const lastMsg = updated[updated.length - 1]
-            lastMsg.thinking = thinkingWords.slice(0, i + 1).join(' ')
-            return [...updated]
-          })
-        }
-        await new Promise(resolve => setTimeout(resolve, 200))
-      }
+      setStreamingThinking('') // Clear streaming state
 
       // Stream content word by word
       const words = response.content.split(' ')
@@ -1357,6 +1354,7 @@ function ChatDemo() {
     }
 
     setIsProcessing(false)
+    setStreamingThinking('') // Ensure streaming state is cleared
   }
 
   // Configurable panel ratio (default 40% chat / 60% artifact like Vith)
@@ -1421,10 +1419,20 @@ function ChatDemo() {
             </div>
           ))}
 
-          {isProcessing && messages[messages.length - 1]?.role === 'user' && (
+          {/* Streaming thinking shown separately (models library's thinkingText state) */}
+          {streamingThinking && (
+            <ThinkingBox
+              thinking={streamingThinking}
+              isExpanded={thinkingExpanded}
+              onToggle={() => setThinkingExpanded(!thinkingExpanded)}
+            />
+          )}
+
+          {/* Simple loading spinner when processing but no thinking yet */}
+          {isProcessing && !streamingThinking && messages[messages.length - 1]?.role === 'user' && (
             <div className="flex items-center gap-2 px-4 py-3 text-zinc-400">
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="text-sm">Thinking...</span>
+              <span className="text-sm">Processing...</span>
             </div>
           )}
 
@@ -1444,7 +1452,10 @@ function ChatDemo() {
             />
             {isProcessing ? (
               <button
-                onClick={() => setIsProcessing(false)}
+                onClick={() => {
+                  setIsProcessing(false)
+                  setStreamingThinking('')
+                }}
                 className="p-3 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors"
               >
                 <Square className="w-5 h-5" />
