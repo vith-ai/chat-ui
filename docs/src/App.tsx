@@ -253,8 +253,124 @@ export async function refreshSession(token: string) {
       ],
     },
   },
+  spreadsheet: {
+    content: "I've created a financial model based on your requirements. The spreadsheet includes projections for the next 12 months.",
+    thinking: "Building a financial model with revenue projections, expenses, and cash flow calculations. I'll use standard SaaS metrics and include formulas for key ratios.",
+    toolCalls: [
+      { id: 't1', name: 'create_spreadsheet', input: { template: 'financial_model' }, status: 'complete' },
+      { id: 't2', name: 'add_formulas', input: { cells: ['D2:D13', 'E2:E13'] }, status: 'complete' },
+    ],
+    tasks: [
+      { id: 'task1', label: 'Create worksheet structure', status: 'completed' },
+      { id: 'task2', label: 'Add revenue projections', status: 'completed' },
+      { id: 'task3', label: 'Calculate expenses', status: 'completed' },
+      { id: 'task4', label: 'Generate cash flow', status: 'completed' },
+    ],
+    artifact: {
+      id: 'spreadsheet1',
+      type: 'table',
+      title: 'Financial Model Q1-Q4',
+      content: `┌─────────┬──────────┬──────────┬──────────┬──────────┐
+│  Month  │ Revenue  │ Expenses │   EBITDA │ Margin % │
+├─────────┼──────────┼──────────┼──────────┼──────────┤
+│  Jan    │  $45,000 │  $32,000 │  $13,000 │    28.9% │
+│  Feb    │  $52,000 │  $34,000 │  $18,000 │    34.6% │
+│  Mar    │  $61,000 │  $36,000 │  $25,000 │    41.0% │
+│  Apr    │  $68,000 │  $38,000 │  $30,000 │    44.1% │
+│  May    │  $75,000 │  $40,000 │  $35,000 │    46.7% │
+│  Jun    │  $82,000 │  $42,000 │  $40,000 │    48.8% │
+├─────────┼──────────┼──────────┼──────────┼──────────┤
+│  Total  │ $383,000 │ $222,000 │ $161,000 │    42.0% │
+└─────────┴──────────┴──────────┴──────────┴──────────┘
+
+📊 Key Metrics:
+• MRR Growth: +82% over 6 months
+• Burn Multiple: 1.4x (healthy)
+• Runway: 18 months at current rate`,
+    },
+  },
+  search: {
+    content: "I searched for the latest information and found several relevant sources. Here's a summary of what I found.",
+    thinking: "The user wants current information. I'll search multiple sources and synthesize the findings into a clear summary.",
+    toolCalls: [
+      { id: 't1', name: 'web_search', input: { query: 'React 19 new features 2024' }, status: 'complete' },
+      { id: 't2', name: 'fetch_url', input: { url: 'https://react.dev/blog' }, status: 'complete' },
+      { id: 't3', name: 'fetch_url', input: { url: 'https://github.com/facebook/react' }, status: 'complete' },
+    ],
+    artifact: {
+      id: 'search1',
+      type: 'document',
+      title: 'Search Results Summary',
+      content: `# React 19 New Features
+
+## Server Components
+React Server Components are now stable, enabling:
+- Zero-bundle-size components
+- Direct database access
+- Streaming rendering
+
+## Actions
+New form handling with automatic:
+- Pending states
+- Optimistic updates
+- Error handling
+
+## New Hooks
+- \`useFormStatus()\` - Form submission state
+- \`useOptimistic()\` - Optimistic UI updates
+- \`use()\` - Read resources in render
+
+## Asset Loading
+Built-in support for:
+- Preloading stylesheets
+- Font optimization
+- Script prioritization
+
+---
+*Sources: react.dev, GitHub, React RFC discussions*`,
+    },
+  },
+  build: {
+    content: "Starting the build process. I'll compile the code, run tests, and generate the production bundle.",
+    thinking: "This is a multi-step build process. I need to run each step sequentially and report progress.",
+    toolCalls: [
+      { id: 't1', name: 'run_command', input: { cmd: 'npm run lint' }, status: 'complete' },
+      { id: 't2', name: 'run_command', input: { cmd: 'npm run typecheck' }, status: 'complete' },
+      { id: 't3', name: 'run_command', input: { cmd: 'npm run test' }, status: 'complete' },
+      { id: 't4', name: 'run_command', input: { cmd: 'npm run build' }, status: 'complete' },
+    ],
+    tasks: [
+      { id: 'task1', label: 'Lint code', status: 'completed' },
+      { id: 'task2', label: 'Type checking', status: 'completed' },
+      { id: 'task3', label: 'Run tests (47 passed)', status: 'completed' },
+      { id: 'task4', label: 'Build production bundle', status: 'completed' },
+      { id: 'task5', label: 'Generate source maps', status: 'completed' },
+      { id: 'task6', label: 'Optimize assets', status: 'completed' },
+    ],
+    artifact: {
+      id: 'build1',
+      type: 'document',
+      title: 'Build Output',
+      content: `Build completed successfully!
+
+📦 Bundle Analysis:
+├── dist/index.js      142.3 KB (gzip: 45.2 KB)
+├── dist/index.css      18.7 KB (gzip:  4.1 KB)
+├── dist/vendor.js     287.1 KB (gzip: 92.4 KB)
+└── dist/assets/       12 files
+
+⚡ Performance:
+• Build time: 4.2s
+• Tree-shaking removed 34% of code
+• CSS purged 67% unused styles
+
+✅ All 47 tests passed
+✅ No TypeScript errors
+✅ No linting warnings`,
+    },
+  },
   help: {
-    content: "Welcome! This demo showcases all the UI components. Try these commands:\n\n• **\"analyze data\"** → Tool calls, tasks, thinking, artifacts\n• **\"write code\"** → Code generation with artifact panel\n• **\"deploy\"** → Approval flow for sensitive actions\n• **\"refactor\"** → Diff view showing code changes\n• **\"configure\"** → Question cards for user input\n\nEach response demonstrates different agentic UI patterns.",
+    content: "This demo showcases all the agentic UI components. Available commands:\n\n• **\"analyze data\"** → Tool calls, tasks, thinking, charts\n• **\"write code\"** → Code generation with artifact panel\n• **\"spreadsheet\"** → Financial model with table artifact\n• **\"search\"** → Web search with multiple tool calls\n• **\"build\"** → Multi-step task progress\n• **\"deploy\"** → Approval flow for sensitive actions\n• **\"refactor\"** → Diff view showing code changes\n• **\"configure\"** → Question cards for user input\n\nEach response demonstrates different agentic UI patterns. Check out the **Docs** to learn how to integrate these into your app.",
   },
 }
 
@@ -611,7 +727,7 @@ function ChatDemo() {
     {
       id: '0',
       role: 'assistant',
-      content: "Welcome! This demo showcases all the agentic UI components. Try these:\n\n• **\"analyze data\"** → Tool calls, tasks, thinking, charts\n• **\"write code\"** → Code generation with artifacts\n• **\"deploy\"** → Approval flow for sensitive actions\n• **\"refactor\"** → Diff view showing code changes\n• **\"configure\"** → Question cards for user input\n• **\"help\"** → See all available demos",
+      content: "Welcome! This demo showcases all the agentic UI components. Try these:\n\n• **\"analyze data\"** → Tool calls, tasks, thinking, charts\n• **\"write code\"** → Code generation with artifacts\n• **\"spreadsheet\"** → Financial models with table artifacts\n• **\"search\"** → Web search with multiple tool calls\n• **\"build\"** → Multi-step task progress\n• **\"deploy\"** → Approval flow for sensitive actions\n• **\"refactor\"** → Diff view showing code changes\n• **\"configure\"** → Question cards for user input",
     },
   ])
   const [input, setInput] = useState('')
@@ -693,10 +809,16 @@ function ChatDemo() {
 
     // Determine response based on input
     let responseKey = 'default'
-    if (userInput.includes('analyz') || userInput.includes('data') || userInput.includes('visual') || userInput.includes('chart')) {
+    if (userInput.includes('analyz') || userInput.includes('visual') || userInput.includes('chart')) {
       responseKey = 'analyze'
     } else if (userInput.includes('code') || userInput.includes('component') || userInput.includes('button') || userInput.includes('function') || userInput.includes('write')) {
       responseKey = 'code'
+    } else if (userInput.includes('spreadsheet') || userInput.includes('excel') || userInput.includes('financial') || userInput.includes('model')) {
+      responseKey = 'spreadsheet'
+    } else if (userInput.includes('search') || userInput.includes('find') || userInput.includes('look up') || userInput.includes('research')) {
+      responseKey = 'search'
+    } else if (userInput.includes('build') || userInput.includes('compile') || userInput.includes('test')) {
+      responseKey = 'build'
     } else if (userInput.includes('deploy') || userInput.includes('production') || userInput.includes('release')) {
       responseKey = 'deploy'
     } else if (userInput.includes('refactor') || userInput.includes('diff') || userInput.includes('change')) {
@@ -838,7 +960,7 @@ function ChatDemo() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-              placeholder="Try: analyze data, write code, deploy, refactor, configure..."
+              placeholder="Try: analyze, code, spreadsheet, search, build, deploy, refactor..."
               disabled={isProcessing}
               className="flex-1 px-4 py-3 rounded-xl border border-surface-border bg-surface-elevated text-sm placeholder:text-zinc-600 focus:outline-none focus:border-accent transition-colors disabled:opacity-50"
             />
@@ -1438,23 +1560,35 @@ registry.register({
       </div>
 
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold">Example: Spreadsheets</h2>
-        <CodeBlock code={`// npm install @handsontable/react handsontable
-import { HotTable } from '@handsontable/react'
-import 'handsontable/dist/handsontable.full.min.css'
+        <h2 className="text-lg font-semibold">Example: Spreadsheets (Univer)</h2>
+        <p className="text-sm text-zinc-400 mb-2">
+          Univer is fully open source (Apache 2.0) with Excel-like features.
+        </p>
+        <CodeBlock code={`// npm install @univerjs/presets @univerjs/preset-sheets-core
+import { createUniver, defaultTheme, LocaleType } from '@univerjs/presets'
+import { UniverSheetsCorePreset } from '@univerjs/preset-sheets-core'
+import '@univerjs/presets/lib/styles/preset-sheets-core.css'
 
 registry.register({
   types: ['spreadsheet', 'csv'],
   render: (artifact) => {
-    const data = parseCSV(artifact.content)
-    return (
-      <HotTable
-        data={data}
-        colHeaders={true}
-        rowHeaders={true}
-        licenseKey="non-commercial-and-evaluation"
-      />
-    )
+    const containerRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+      if (!containerRef.current) return
+
+      const { univerAPI } = createUniver({
+        locale: LocaleType.EN_US,
+        theme: defaultTheme,
+        presets: [UniverSheetsCorePreset()],
+      })
+
+      univerAPI.createWorkbook({ sheets: [{ data: parseCSV(artifact.content) }] })
+
+      return () => univerAPI.dispose()
+    }, [artifact])
+
+    return <div ref={containerRef} style={{ height: 400 }} />
   },
 })`} />
       </div>
@@ -1501,21 +1635,27 @@ registry.register({
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">Optional Dependencies</h2>
         <p className="text-sm text-zinc-400 mb-3">
-          Install only what you need:
+          All fully open source (MIT/Apache 2.0). Install only what you need:
         </p>
-        <CodeBlock code={`# Syntax highlighting
+        <CodeBlock code={`# Syntax highlighting (MIT)
 npm install shiki
 
-# Markdown
+# Markdown (MIT)
 npm install react-markdown remark-gfm
 
-# Spreadsheets
-npm install @handsontable/react handsontable
+# Spreadsheets (Apache 2.0) - recommended
+npm install @univerjs/presets @univerjs/preset-sheets-core
 
-# PDFs
+# Excel file parsing (Apache 2.0)
+npm install xlsx exceljs
+
+# PDFs (MIT)
 npm install react-pdf
 
-# Diagrams
+# Word documents (BSD-2)
+npm install mammoth
+
+# Diagrams (MIT)
 npm install mermaid`} language="bash" />
       </div>
 
