@@ -1,17 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
-import { motion, AnimatePresence } from 'motion/react'
+import { motion } from 'motion/react'
 import { codeToHtml } from 'shiki'
 import {
-  CheckCircle,
-  Loader2,
-  Send,
-  Square,
-  Bot,
-  User,
-  Wrench,
-  Brain,
-  ChevronDown,
-  ChevronRight,
   Github,
   BookOpen,
   ArrowLeft,
@@ -22,63 +12,50 @@ import {
   Table,
   FileText,
   X,
-  Shield,
-  HelpCircle,
   Plus,
   Minus,
   PanelRight,
   Sparkles,
   Sun,
   Moon,
+  Send,
+  Square,
+  Loader2,
 } from 'lucide-react'
 import clsx from 'clsx'
 
-// Types
-interface DemoToolCall {
-  id: string
-  name: string
-  input: Record<string, unknown>
-  status: 'pending' | 'running' | 'complete'
-}
+// Import from the library
+import {
+  MessageBubble,
+  ThinkingBox,
+  ToolCallCard,
+  TodoBox,
+  ApprovalCard,
+  DiffView,
+  QuestionCard,
+} from '@vith-ai/chat-ui'
+import type {
+  ChatMessage,
+  ToolCall,
+  TaskItem,
+  ApprovalRequest,
+  FileChange,
+  PendingQuestion,
+} from '@vith-ai/chat-ui'
+// Import the library styles
+import '@vith-ai/chat-ui/styles.css'
 
-interface DemoTask {
-  id: string
-  label: string
-  status: 'pending' | 'in_progress' | 'completed'
-}
-
-interface DemoApproval {
-  id: string
-  title: string
-  description: string
-  status: 'pending' | 'approved' | 'rejected'
-}
-
-interface DemoQuestion {
-  id: string
-  question: string
-  options: string[]
-}
-
-interface DemoDiff {
-  filename: string
-  additions: string[]
-  deletions: string[]
-}
-
-interface DemoMessage {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  thinking?: string
-  toolCalls?: DemoToolCall[]
-  tasks?: DemoTask[]
+// Extended message type for demo (adds artifact support which library doesn't have built-in)
+interface DemoMessage extends Omit<ChatMessage, 'toolCalls'> {
+  toolCalls?: ToolCall[]
+  tasks?: TaskItem[]
   artifact?: Artifact
-  approval?: DemoApproval
-  question?: DemoQuestion
-  diff?: DemoDiff
+  approval?: ApprovalRequest
+  question?: PendingQuestion
+  diff?: FileChange
 }
 
+// Artifact type for the demo (library has ArtifactRegistry but no built-in panel)
 interface Artifact {
   id: string
   type: 'code' | 'image' | 'chart' | 'table' | 'document' | 'spreadsheet' | 'pdf'
@@ -91,12 +68,12 @@ interface Artifact {
 interface DemoResponse {
   content: string
   thinking?: string
-  toolCalls?: DemoToolCall[]
-  tasks?: DemoTask[]
+  toolCalls?: ToolCall[]
+  tasks?: TaskItem[]
   artifact?: Artifact
-  approval?: DemoApproval
-  question?: DemoQuestion
-  diff?: DemoDiff
+  approval?: ApprovalRequest
+  question?: PendingQuestion
+  diff?: FileChange
 }
 
 const demoResponses: Record<string, DemoResponse> = {
@@ -193,9 +170,10 @@ export function Button({
     ],
     approval: {
       id: 'deploy-approval',
-      title: 'Deploy to Production',
-      description: 'This will deploy v2.1.0 to production and run 3 pending migrations.',
-      status: 'pending',
+      action: 'Deploy v2.1.0 to production',
+      risk: 'high',
+      details: 'This will run 3 pending database migrations and update the live site.',
+      code: 'npm run deploy --target=production',
     },
   },
   refactor: {
@@ -206,25 +184,23 @@ export function Button({
       { id: 't2', name: 'edit_file', input: { path: 'src/auth/utils.ts' }, status: 'complete' },
     ],
     diff: {
-      filename: 'src/auth/login.ts',
-      additions: [
-        "import { validateToken, refreshSession } from './utils'",
-        "",
-        "export async function login(credentials: Credentials) {",
-        "  const token = await authenticate(credentials)",
-        "  return validateToken(token)",
-        "}",
-      ],
-      deletions: [
-        "import jwt from 'jsonwebtoken'",
-        "",
-        "export async function login(credentials: Credentials) {",
-        "  const token = await authenticate(credentials)",
-        "  // Manual token validation (duplicated)",
-        "  if (!jwt.verify(token, SECRET)) throw new Error('Invalid')",
-        "  return token",
-        "}",
-      ],
+      path: 'src/auth/login.ts',
+      type: 'modified',
+      language: 'typescript',
+      before: `import jwt from 'jsonwebtoken'
+
+export async function login(credentials: Credentials) {
+  const token = await authenticate(credentials)
+  // Manual token validation (duplicated)
+  if (!jwt.verify(token, SECRET)) throw new Error('Invalid')
+  return token
+}`,
+      after: `import { validateToken, refreshSession } from './utils'
+
+export async function login(credentials: Credentials) {
+  const token = await authenticate(credentials)
+  return validateToken(token)
+}`,
     },
     artifact: {
       id: 'refactor1',
@@ -252,9 +228,9 @@ export async function refreshSession(token: string) {
       id: 'db-question',
       question: 'How would you like to configure the database connection?',
       options: [
-        'Environment variables (.env file)',
-        'Config file (config.json)',
-        'Connection string in code',
+        { label: 'Environment variables', description: 'Store in .env file (recommended)' },
+        { label: 'Config file', description: 'Store in config.json' },
+        { label: 'Connection string', description: 'Hardcode in source' },
       ],
     },
   },
@@ -400,294 +376,7 @@ Built-in support for:
   },
 }
 
-// Components
-function MessageBubble({ message }: { message: DemoMessage }) {
-  const isUser = message.role === 'user'
-
-  const renderContent = (content: string) => {
-    // Simple markdown-like rendering
-    const lines = content.split('\n')
-    return lines.map((line, i) => {
-      // Bold
-      line = line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      // Bullet points
-      if (line.startsWith('• ')) {
-        return <div key={i} className="flex gap-2 ml-2"><span className="text-accent">•</span><span dangerouslySetInnerHTML={{ __html: line.slice(2) }} /></div>
-      }
-      if (!line.trim()) return <div key={i} className="h-2" />
-      return <div key={i} dangerouslySetInnerHTML={{ __html: line }} />
-    })
-  }
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={clsx('flex gap-3 p-4', isUser ? 'flex-row-reverse' : 'flex-row')}
-    >
-      <div
-        className={clsx(
-          'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center',
-          isUser ? 'bg-accent' : 'bg-surface-elevated border border-surface-border'
-        )}
-      >
-        {isUser ? (
-          <User className="w-4 h-4 text-white" />
-        ) : (
-          <Bot className="w-4 h-4" style={{ color: 'var(--chat-text)' }} />
-        )}
-      </div>
-      <div
-        className={clsx(
-          'flex-1 max-w-[85%] rounded-2xl px-4 py-3',
-          isUser
-            ? 'bg-accent text-white'
-            : 'bg-surface-elevated border border-surface-border'
-        )}
-        style={!isUser ? { color: 'var(--chat-text)' } : undefined}
-      >
-        <div className="text-sm leading-relaxed">{renderContent(message.content)}</div>
-      </div>
-    </motion.div>
-  )
-}
-
-function ThinkingBox({ thinking, isExpanded, onToggle }: { thinking: string; isExpanded: boolean; onToggle: () => void }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="mx-4 mb-2 rounded-lg border border-surface-border bg-surface-elevated overflow-hidden"
-    >
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-surface/50 transition-colors"
-        style={{ color: 'var(--chat-text)' }}
-      >
-        <Brain className="w-4 h-4 text-accent" />
-        <span className="text-sm font-medium">Thinking</span>
-        <div className="ml-auto" style={{ color: 'var(--chat-text-secondary)' }}>
-          {isExpanded ? (
-            <ChevronDown className="w-4 h-4" />
-          ) : (
-            <ChevronRight className="w-4 h-4" />
-          )}
-        </div>
-      </button>
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="border-t border-surface-border"
-          >
-            <p className="px-3 py-2 text-xs font-mono" style={{ color: 'var(--chat-text-secondary)' }}>{thinking}</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  )
-}
-
-function ToolCallCard({ tool }: { tool: DemoToolCall }) {
-  const [isExpanded, setIsExpanded] = useState(false)
-
-  return (
-    <div className={clsx(
-      'rounded-lg border border-surface-border overflow-hidden',
-      tool.status === 'complete' ? 'bg-emerald-500/5' : 'bg-surface-elevated'
-    )}>
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-surface/50 transition-colors"
-        style={{ color: 'var(--chat-text)' }}
-      >
-        <Wrench
-          className="w-4 h-4"
-          style={{ color: tool.status === 'pending' ? 'var(--chat-text-secondary)' : tool.status === 'running' ? 'var(--accent)' : '#34d399' }}
-        />
-        <span className="text-sm font-medium font-mono">{tool.name}</span>
-        {tool.status === 'running' ? (
-          <Loader2 className="w-4 h-4 ml-auto text-accent animate-spin" />
-        ) : tool.status === 'complete' ? (
-          <CheckCircle className="w-4 h-4 ml-auto text-emerald-400" />
-        ) : null}
-        <div style={{ color: 'var(--chat-text-secondary)' }}>
-          {isExpanded ? (
-            <ChevronDown className="w-4 h-4" />
-          ) : (
-            <ChevronRight className="w-4 h-4" />
-          )}
-        </div>
-      </button>
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div
-            initial={{ height: 0 }}
-            animate={{ height: 'auto' }}
-            exit={{ height: 0 }}
-            className="border-t border-surface-border bg-surface overflow-hidden"
-          >
-            <pre className="p-3 text-xs font-mono overflow-x-auto" style={{ color: 'var(--chat-text-secondary)' }}>
-              {JSON.stringify(tool.input, null, 2)}
-            </pre>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  )
-}
-
-function TodoBox({ tasks }: { tasks: DemoTask[] }) {
-  const completed = tasks.filter(t => t.status === 'completed').length
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="mx-4 mb-2 rounded-lg border border-surface-border bg-surface-elevated overflow-hidden"
-    >
-      <div className="flex items-center justify-between px-3 py-2 border-b border-surface-border">
-        <span className="text-sm font-medium">Tasks</span>
-        <span className="text-xs text-zinc-500">{completed}/{tasks.length}</span>
-      </div>
-      <div className="divide-y divide-surface-border">
-        {tasks.map(task => (
-          <div key={task.id} className="flex items-center gap-3 px-3 py-2">
-            {task.status === 'completed' ? (
-              <CheckCircle className="w-4 h-4 text-emerald-400" />
-            ) : task.status === 'in_progress' ? (
-              <Loader2 className="w-4 h-4 text-accent animate-spin" />
-            ) : (
-              <div className="w-4 h-4 rounded-full border border-zinc-600" />
-            )}
-            <span className={clsx('text-sm', task.status === 'completed' && 'text-zinc-500 line-through')}>
-              {task.label}
-            </span>
-          </div>
-        ))}
-      </div>
-      <div className="h-1 bg-surface">
-        <div
-          className="h-full bg-accent transition-all duration-300"
-          style={{ width: `${(completed / tasks.length) * 100}%` }}
-        />
-      </div>
-    </motion.div>
-  )
-}
-
-function ApprovalCard({ approval, onApprove, onReject }: { approval: DemoApproval; onApprove: () => void; onReject: () => void }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="mx-4 mb-2 rounded-lg border border-amber-500/30 bg-amber-500/5 overflow-hidden"
-    >
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-amber-500/20">
-        <Shield className="w-4 h-4 text-amber-400" />
-        <span className="text-sm font-medium text-amber-400">Approval Required</span>
-      </div>
-      <div className="p-3">
-        <p className="text-sm font-medium mb-1">{approval.title}</p>
-        <p className="text-xs text-zinc-400 mb-3">{approval.description}</p>
-        {approval.status === 'pending' ? (
-          <div className="flex gap-2">
-            <button
-              onClick={onApprove}
-              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 transition-colors"
-            >
-              <CheckCircle className="w-4 h-4" />
-              Approve
-            </button>
-            <button
-              onClick={onReject}
-              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-zinc-700 text-white text-sm font-medium hover:bg-zinc-600 transition-colors"
-            >
-              <X className="w-4 h-4" />
-              Reject
-            </button>
-          </div>
-        ) : (
-          <div className={clsx(
-            'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium',
-            approval.status === 'approved' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
-          )}>
-            {approval.status === 'approved' ? (
-              <><CheckCircle className="w-4 h-4" /> Approved</>
-            ) : (
-              <><X className="w-4 h-4" /> Rejected</>
-            )}
-          </div>
-        )}
-      </div>
-    </motion.div>
-  )
-}
-
-function QuestionCard({ question, onAnswer }: { question: DemoQuestion; onAnswer: (answer: string) => void }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="mx-4 mb-2 rounded-lg border border-blue-500/30 bg-blue-500/5 overflow-hidden"
-    >
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-blue-500/20">
-        <HelpCircle className="w-4 h-4 text-blue-400" />
-        <span className="text-sm font-medium text-blue-400">Input Needed</span>
-      </div>
-      <div className="p-3">
-        <p className="text-sm font-medium mb-3">{question.question}</p>
-        <div className="space-y-2">
-          {question.options.map((option, i) => (
-            <button
-              key={i}
-              onClick={() => onAnswer(option)}
-              className="w-full text-left px-3 py-2 rounded-lg bg-surface-elevated border border-surface-border text-sm hover:border-blue-500/50 hover:bg-blue-500/10 transition-colors"
-            >
-              {option}
-            </button>
-          ))}
-        </div>
-      </div>
-    </motion.div>
-  )
-}
-
-function DiffView({ diff }: { diff: DemoDiff }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="mx-4 mb-2 rounded-lg border border-surface-border bg-surface-elevated overflow-hidden"
-    >
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-surface-border">
-        <FileCode className="w-4 h-4 text-accent" />
-        <span className="text-sm font-mono">{diff.filename}</span>
-      </div>
-      <div className="font-mono text-xs overflow-x-auto">
-        {diff.deletions.map((line, i) => (
-          <div key={`del-${i}`} className="flex bg-red-500/10">
-            <span className="w-8 text-center text-red-400/50 border-r border-surface-border py-0.5">
-              <Minus className="w-3 h-3 inline" />
-            </span>
-            <span className="flex-1 text-red-400 px-2 py-0.5">{line || ' '}</span>
-          </div>
-        ))}
-        {diff.additions.map((line, i) => (
-          <div key={`add-${i}`} className="flex bg-emerald-500/10">
-            <span className="w-8 text-center text-emerald-400/50 border-r border-surface-border py-0.5">
-              <Plus className="w-3 h-3 inline" />
-            </span>
-            <span className="flex-1 text-emerald-400 px-2 py-0.5">{line || ' '}</span>
-          </div>
-        ))}
-      </div>
-    </motion.div>
-  )
-}
-
+// Artifact renderers (demo-specific - library provides ArtifactRegistry for type detection)
 // Rich Spreadsheet Viewer
 function SpreadsheetViewer({ data }: { data: { headers: string[]; rows: (string | number)[][] } }) {
   const formatCell = (value: string | number) => {
@@ -1134,7 +823,6 @@ function ChatDemo() {
   const [input, setInput] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [streamingThinking, setStreamingThinking] = useState('')
-  const [thinkingExpanded, setThinkingExpanded] = useState(true)
   const [currentArtifact, setCurrentArtifact] = useState<Artifact | null>(null)
   const [showArtifactPanel, setShowArtifactPanel] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -1148,12 +836,10 @@ function ChatDemo() {
   }, [messages, streamingThinking])
 
   const handleApproval = (messageId: string, approved: boolean) => {
+    // Remove the approval from the message (it's been handled)
     setMessages(prev => prev.map(msg => {
-      if (msg.id === messageId && msg.approval) {
-        return {
-          ...msg,
-          approval: { ...msg.approval, status: approved ? 'approved' : 'rejected' }
-        }
+      if (msg.id === messageId) {
+        return { ...msg, approval: undefined }
       }
       return msg
     }))
@@ -1369,47 +1055,51 @@ function ChatDemo() {
     <div className="flex-1 flex min-h-0">
       {/* Chat */}
       <div
-        className={clsx(
-          'flex flex-col min-w-0 transition-all duration-200',
-          !showArtifactPanel && 'mx-auto'
-        )}
-        style={{
-          flex: showArtifactPanel ? '1 1 40%' : '1 1 100%',
-          maxWidth: showArtifactPanel ? undefined : '800px',
-        }}
+        className="flex flex-col min-w-0"
+        style={{ flex: '0 0 40%', minWidth: '320px' }}
       >
         <div className="flex-1 overflow-y-auto">
           {messages.map(message => (
             <div key={message.id}>
               <MessageBubble message={message} />
               {message.thinking && (
-                <ThinkingBox
-                  thinking={message.thinking}
-                  isExpanded={thinkingExpanded}
-                  onToggle={() => setThinkingExpanded(!thinkingExpanded)}
-                />
+                <div className="mx-4 mb-2">
+                  <ThinkingBox thinking={message.thinking} defaultCollapsed={false} />
+                </div>
               )}
               {message.toolCalls && message.toolCalls.length > 0 && (
                 <div className="mx-4 mb-2 space-y-2">
-                  {message.toolCalls.map(tool => (
-                    <ToolCallCard key={tool.id} tool={tool} />
+                  {message.toolCalls.map(tc => (
+                    <ToolCallCard key={tc.id} toolCall={tc} />
                   ))}
                 </div>
               )}
-              {message.tasks && <TodoBox tasks={message.tasks} />}
-              {message.diff && <DiffView diff={message.diff} />}
+              {message.tasks && (
+                <div className="mx-4 mb-2">
+                  <TodoBox tasks={message.tasks} />
+                </div>
+              )}
+              {message.diff && (
+                <div className="mx-4 mb-2">
+                  <DiffView change={message.diff} showActions={false} />
+                </div>
+              )}
               {message.approval && (
-                <ApprovalCard
-                  approval={message.approval}
-                  onApprove={() => handleApproval(message.id, true)}
-                  onReject={() => handleApproval(message.id, false)}
-                />
+                <div className="mx-4 mb-2">
+                  <ApprovalCard
+                    request={message.approval}
+                    onApprove={() => handleApproval(message.id, true)}
+                    onDeny={() => handleApproval(message.id, false)}
+                  />
+                </div>
               )}
               {message.question && (
-                <QuestionCard
-                  question={message.question}
-                  onAnswer={(answer) => handleQuestion(message.id, answer)}
-                />
+                <div className="mx-4 mb-2">
+                  <QuestionCard
+                    question={message.question}
+                    onAnswer={(answer) => handleQuestion(message.id, answer as string)}
+                  />
+                </div>
               )}
               {message.artifact && (
                 <motion.button
@@ -1431,11 +1121,9 @@ function ChatDemo() {
 
           {/* Streaming thinking shown separately (models library's thinkingText state) */}
           {streamingThinking && (
-            <ThinkingBox
-              thinking={streamingThinking}
-              isExpanded={thinkingExpanded}
-              onToggle={() => setThinkingExpanded(!thinkingExpanded)}
-            />
+            <div className="mx-4 mb-2">
+              <ThinkingBox thinking={streamingThinking} isStreaming={true} defaultCollapsed={false} />
+            </div>
           )}
 
           {/* Simple loading spinner when processing but no thinking yet */}
@@ -1503,8 +1191,8 @@ function ChatDemo() {
       {/* Artifact Panel */}
       {showArtifactPanel && (
         <div
-          className="border-l bg-surface-elevated flex-1 min-w-[300px]"
-          style={{ borderColor: 'var(--surface-border)', background: 'var(--surface-elevated)' }}
+          className="border-l border-surface-border bg-surface-elevated"
+          style={{ flex: '0 0 60%', minWidth: '300px' }}
         >
           <ArtifactPanel artifact={currentArtifact} onClose={() => setCurrentArtifact(null)} />
         </div>

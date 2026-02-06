@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build",
+  "buildCommand": "See root vercel.json - deploy from project root",
   "outputDirectory": "dist",
-  "framework": "vite"
+  "framework": null
 }
