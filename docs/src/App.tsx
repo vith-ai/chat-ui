@@ -1382,55 +1382,141 @@ function ArtifactsSection() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold mb-2">Artifact System</h1>
-        <p className="text-zinc-400">Display rich content with pluggable renderers.</p>
+        <p className="text-zinc-400">Display rich content with pluggable renderers. Easily add support for any content type.</p>
       </div>
 
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold">Artifact Registry</h2>
-        <CodeBlock code={`import { ArtifactRegistry, createArtifact } from '@vith-ai/chat-ui'
+        <h2 className="text-lg font-semibold">Quick Start</h2>
+        <CodeBlock code={`import { ArtifactRegistry } from '@vith-ai/chat-ui'
 
+// Create a registry
 const registry = new ArtifactRegistry()
 
-// Register custom renderers
+// Register ANY custom renderer
 registry.register({
-  types: ['code'],
-  render: (artifact) => (
-    <SyntaxHighlighter language={artifact.language}>
-      {artifact.content}
-    </SyntaxHighlighter>
-  ),
+  types: ['my-custom-type'],
+  render: (artifact) => <MyCustomComponent data={artifact.content} />,
 })
 
+// Use it
+if (registry.canRender(artifact)) {
+  return registry.render(artifact)
+}`} />
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Built-in Types</h2>
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          {['code', 'markdown', 'image', 'html', 'csv', 'json', 'pdf', 'spreadsheet', 'custom'].map(type => (
+            <div key={type} className="p-2 rounded-lg bg-surface-elevated border border-surface-border">
+              <code className="text-accent">{type}</code>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Example: Code with Syntax Highlighting</h2>
+        <CodeBlock code={`// npm install shiki
+import { codeToHtml } from 'shiki'
+
 registry.register({
-  types: ['markdown'],
-  render: (artifact) => <ReactMarkdown>{artifact.content}</ReactMarkdown>,
-})
+  types: ['code'],
+  render: (artifact) => {
+    const [html, setHtml] = useState('')
+
+    useEffect(() => {
+      codeToHtml(artifact.content, {
+        lang: artifact.language || 'text',
+        theme: 'github-dark',
+      }).then(setHtml)
+    }, [artifact])
+
+    return <div dangerouslySetInnerHTML={{ __html: html }} />
+  },
+})`} />
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Example: Spreadsheets</h2>
+        <CodeBlock code={`// npm install @handsontable/react handsontable
+import { HotTable } from '@handsontable/react'
+import 'handsontable/dist/handsontable.full.min.css'
 
 registry.register({
   types: ['spreadsheet', 'csv'],
-  render: (artifact) => <Handsontable data={parseCSV(artifact.content)} />,
+  render: (artifact) => {
+    const data = parseCSV(artifact.content)
+    return (
+      <HotTable
+        data={data}
+        colHeaders={true}
+        rowHeaders={true}
+        licenseKey="non-commercial-and-evaluation"
+      />
+    )
+  },
+})`} />
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Example: Diagrams (Mermaid)</h2>
+        <CodeBlock code={`// npm install mermaid
+import mermaid from 'mermaid'
+
+registry.register({
+  types: ['custom'],
+  canRender: (artifact) => artifact.metadata?.format === 'mermaid',
+  render: (artifact) => {
+    const ref = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+      if (ref.current) {
+        mermaid.render('diagram', artifact.content).then(({ svg }) => {
+          ref.current!.innerHTML = svg
+        })
+      }
+    }, [artifact])
+
+    return <div ref={ref} />
+  },
+})`} />
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Example: PDF Viewer</h2>
+        <CodeBlock code={`// npm install react-pdf
+import { Document, Page } from 'react-pdf'
+
+registry.register({
+  types: ['pdf'],
+  render: (artifact) => (
+    <Document file={artifact.content}>
+      <Page pageNumber={1} />
+    </Document>
+  ),
 })`} />
       </div>
 
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">Optional Dependencies</h2>
         <p className="text-sm text-zinc-400 mb-3">
-          Install these packages to enable rich artifact rendering:
+          Install only what you need:
         </p>
-        <div className="grid gap-2 text-sm">
-          {[
-            { pkg: 'shiki', purpose: 'Syntax highlighting' },
-            { pkg: 'react-markdown', purpose: 'Markdown rendering' },
-            { pkg: '@handsontable/react', purpose: 'Spreadsheets' },
-            { pkg: 'react-pdf', purpose: 'PDF viewing' },
-            { pkg: 'mermaid', purpose: 'Diagrams' },
-          ].map(({ pkg, purpose }) => (
-            <div key={pkg} className="flex justify-between p-2 rounded-lg bg-surface-elevated border border-surface-border">
-              <code className="text-accent">{pkg}</code>
-              <span className="text-zinc-500">{purpose}</span>
-            </div>
-          ))}
-        </div>
+        <CodeBlock code={`# Syntax highlighting
+npm install shiki
+
+# Markdown
+npm install react-markdown remark-gfm
+
+# Spreadsheets
+npm install @handsontable/react handsontable
+
+# PDFs
+npm install react-pdf
+
+# Diagrams
+npm install mermaid`} language="bash" />
       </div>
 
       <div className="space-y-4">
