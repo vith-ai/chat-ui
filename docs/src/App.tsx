@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
+import { codeToHtml } from 'shiki'
 import {
   CheckCircle,
   Loader2,
@@ -78,7 +79,7 @@ interface DemoMessage {
 
 interface Artifact {
   id: string
-  type: 'code' | 'image' | 'chart' | 'table' | 'document' | 'spreadsheet'
+  type: 'code' | 'image' | 'chart' | 'table' | 'document' | 'spreadsheet' | 'pdf'
   title: string
   content: string
   language?: string
@@ -379,8 +380,21 @@ Built-in support for:
       content: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80',
     },
   },
+  pdf: {
+    content: "I've generated the quarterly report as a PDF. You can view it in the artifact panel.",
+    thinking: "Compiling the quarterly data into a professional PDF report with key metrics and visualizations.",
+    toolCalls: [
+      { id: 't1', name: 'generate_pdf', input: { template: 'quarterly_report', quarter: 'Q4' }, status: 'complete' },
+    ],
+    artifact: {
+      id: 'pdf1',
+      type: 'pdf',
+      title: 'Q4 2024 Report.pdf',
+      content: 'quarterly-report.pdf',
+    },
+  },
   help: {
-    content: "This demo showcases all the agentic UI components. Available commands:\n\n• **\"analyze data\"** → Tool calls, tasks, thinking, charts\n• **\"write code\"** → Code generation with artifact panel\n• **\"spreadsheet\"** → Financial model with table artifact\n• **\"search\"** → Web search with multiple tool calls\n• **\"build\"** → Multi-step task progress\n• **\"image\"** → Image generation artifact\n• **\"deploy\"** → Approval flow for sensitive actions\n• **\"refactor\"** → Diff view showing code changes\n• **\"configure\"** → Question cards for user input\n\nEach response demonstrates different agentic UI patterns. Check out the **Docs** to learn how to integrate these into your app.",
+    content: "This demo showcases all the agentic UI components. Available commands:\n\n• **\"analyze data\"** → Tool calls, tasks, thinking, charts\n• **\"write code\"** → Syntax-highlighted code artifact\n• **\"spreadsheet\"** → Interactive spreadsheet viewer\n• **\"pdf\"** or **\"report\"** → PDF document viewer\n• **\"search\"** → Web search with multiple tools\n• **\"build\"** → Multi-step task progress\n• **\"image\"** → Image generation artifact\n• **\"deploy\"** → Approval flow\n• **\"refactor\"** → Diff view\n• **\"configure\"** → Question cards\n\nEach response demonstrates different agentic UI patterns. Check out the **Docs** to learn how to integrate these into your app.",
   },
 }
 
@@ -760,6 +774,125 @@ function SpreadsheetViewer({ data }: { data: { headers: string[]; rows: (string 
   )
 }
 
+// Syntax-highlighted Code Viewer using Shiki
+function CodeViewer({ code, language = 'typescript' }: { code: string; language?: string }) {
+  const [html, setHtml] = useState<string>('')
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    setIsLoading(true)
+    codeToHtml(code, {
+      lang: language,
+      theme: 'github-dark',
+    }).then(result => {
+      setHtml(result)
+      setIsLoading(false)
+    }).catch(() => {
+      // Fallback to plain text if language not supported
+      setHtml(`<pre class="shiki"><code>${code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>`)
+      setIsLoading(false)
+    })
+  }, [code, language])
+
+  if (isLoading) {
+    return (
+      <div className="bg-[#0d1117] rounded-lg p-4 animate-pulse">
+        <div className="h-4 bg-zinc-800 rounded w-3/4 mb-2"></div>
+        <div className="h-4 bg-zinc-800 rounded w-1/2 mb-2"></div>
+        <div className="h-4 bg-zinc-800 rounded w-2/3"></div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-[#0d1117] rounded-lg overflow-hidden border border-zinc-800">
+      {/* Editor-like header */}
+      <div className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border-b border-zinc-800">
+        <div className="flex gap-1.5">
+          <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
+          <div className="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+          <div className="w-3 h-3 rounded-full bg-green-500/80"></div>
+        </div>
+        <span className="text-xs text-zinc-500 ml-2 font-mono">{language}</span>
+      </div>
+      {/* Code with line numbers */}
+      <div className="overflow-auto max-h-[500px]">
+        <div
+          className="p-4 text-sm [&_pre]:!bg-transparent [&_pre]:!m-0 [&_code]:!text-sm"
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      </div>
+    </div>
+  )
+}
+
+// PDF Viewer component
+function PDFViewer({ title }: { title: string }) {
+  return (
+    <div className="bg-zinc-900 rounded-lg overflow-hidden border border-zinc-800 h-full flex flex-col">
+      {/* PDF toolbar */}
+      <div className="flex items-center justify-between px-4 py-2 bg-zinc-800 border-b border-zinc-700">
+        <div className="flex items-center gap-2">
+          <FileText className="w-4 h-4 text-red-400" />
+          <span className="text-sm text-zinc-300">{title}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <button className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded">
+            <Minus className="w-4 h-4" />
+          </button>
+          <span className="text-xs text-zinc-500 px-2">100%</span>
+          <button className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded">
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+      {/* PDF preview */}
+      <div className="flex-1 bg-zinc-950 p-4 overflow-auto">
+        <div className="bg-white rounded shadow-2xl mx-auto max-w-lg p-8 text-zinc-900 min-h-[400px]">
+          {/* Simulated PDF content */}
+          <div className="text-center mb-6">
+            <h1 className="text-xl font-bold text-zinc-800">Quarterly Report</h1>
+            <p className="text-sm text-zinc-500 mt-1">Q4 2024 Financial Summary</p>
+          </div>
+          <div className="space-y-4 text-sm">
+            <div>
+              <h2 className="font-semibold text-zinc-700 mb-2">Executive Summary</h2>
+              <p className="text-zinc-600 leading-relaxed">
+                Revenue increased 23% YoY to $4.2M. Operating margin improved to 18%.
+                Customer acquisition cost decreased by 15% while lifetime value increased 28%.
+              </p>
+            </div>
+            <div className="border-t pt-4">
+              <h2 className="font-semibold text-zinc-700 mb-2">Key Metrics</h2>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="bg-zinc-100 p-2 rounded">
+                  <div className="text-zinc-500">ARR</div>
+                  <div className="font-semibold">$4.2M</div>
+                </div>
+                <div className="bg-zinc-100 p-2 rounded">
+                  <div className="text-zinc-500">Growth</div>
+                  <div className="font-semibold text-green-600">+23%</div>
+                </div>
+                <div className="bg-zinc-100 p-2 rounded">
+                  <div className="text-zinc-500">Customers</div>
+                  <div className="font-semibold">1,247</div>
+                </div>
+                <div className="bg-zinc-100 p-2 rounded">
+                  <div className="text-zinc-500">NPS</div>
+                  <div className="font-semibold">72</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="mt-8 text-center text-xs text-zinc-400">
+            Page 1 of 12
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ArtifactPanel({ artifact, onClose }: { artifact: Artifact | null; onClose: () => void }) {
   const [copied, setCopied] = useState(false)
 
@@ -788,6 +921,7 @@ function ArtifactPanel({ artifact, onClose }: { artifact: Artifact | null; onClo
     table: Table,
     document: FileText,
     spreadsheet: Table,
+    pdf: FileText,
   }
   const Icon = icons[artifact.type] || FileCode
 
@@ -800,6 +934,14 @@ function ArtifactPanel({ artifact, onClose }: { artifact: Artifact | null; onClo
       } catch {
         return <pre className="text-sm font-mono text-zinc-300 whitespace-pre-wrap">{artifact.content}</pre>
       }
+    }
+
+    if (artifact.type === 'code') {
+      return <CodeViewer code={artifact.content} language={artifact.language || 'typescript'} />
+    }
+
+    if (artifact.type === 'pdf') {
+      return <PDFViewer title={artifact.title} />
     }
 
     if (artifact.type === 'image') {
@@ -933,16 +1075,6 @@ function ArtifactPanel({ artifact, onClose }: { artifact: Artifact | null; onClo
       )
     }
 
-    if (artifact.type === 'code') {
-      return (
-        <div className="bg-[#0d0d12] rounded-lg overflow-hidden border border-surface-border">
-          <pre className="p-4 overflow-x-auto text-sm font-mono leading-relaxed">
-            <code className="text-zinc-300">{artifact.content}</code>
-          </pre>
-        </div>
-      )
-    }
-
     // Default: plain text
     return <pre className="text-sm font-mono text-zinc-300 whitespace-pre-wrap">{artifact.content}</pre>
   }
@@ -988,7 +1120,7 @@ function ChatDemo() {
     {
       id: '0',
       role: 'assistant',
-      content: "Welcome! This demo showcases all the agentic UI components. Try these:\n\n• **\"analyze data\"** → Tool calls, tasks, thinking, charts\n• **\"write code\"** → Code generation with artifacts\n• **\"spreadsheet\"** → Financial models with tables\n• **\"search\"** → Web search with multiple tools\n• **\"build\"** → Multi-step task progress\n• **\"image\"** → Image generation artifact\n• **\"deploy\"** → Approval flow\n• **\"refactor\"** → Diff view\n• **\"configure\"** → Question cards",
+      content: "Welcome! This demo showcases all the agentic UI components. Try these:\n\n• **\"analyze\"** → Tool calls, tasks, thinking, charts\n• **\"code\"** → Syntax-highlighted code\n• **\"spreadsheet\"** → Interactive spreadsheet\n• **\"pdf\"** → PDF document viewer\n• **\"search\"** → Web search tools\n• **\"build\"** → Multi-step tasks\n• **\"image\"** → Image artifacts\n• **\"deploy\"** → Approval flow\n• **\"refactor\"** → Diff view\n• **\"configure\"** → Question cards",
     },
   ])
   const [input, setInput] = useState('')
@@ -1083,6 +1215,8 @@ function ChatDemo() {
       responseKey = 'build'
     } else if (userInput.includes('image') || userInput.includes('picture') || userInput.includes('photo') || userInput.includes('generate')) {
       responseKey = 'image'
+    } else if (userInput.includes('pdf') || userInput.includes('report') || userInput.includes('document')) {
+      responseKey = 'pdf'
     } else if (userInput.includes('deploy') || userInput.includes('production') || userInput.includes('release')) {
       responseKey = 'deploy'
     } else if (userInput.includes('refactor') || userInput.includes('diff') || userInput.includes('change')) {
