@@ -25,6 +25,8 @@ import {
   HelpCircle,
   Plus,
   Minus,
+  PanelRight,
+  Sparkles,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -369,8 +371,21 @@ Built-in support for:
 ✅ No linting warnings`,
     },
   },
+  image: {
+    content: "I've generated an image based on your description. Here's a beautiful mountain landscape at sunset.",
+    thinking: "Processing the image generation request... Creating a scenic mountain landscape with warm sunset colors.",
+    toolCalls: [
+      { id: 't1', name: 'generate_image', input: { prompt: 'mountain landscape at sunset, dramatic lighting' }, status: 'complete' },
+    ],
+    artifact: {
+      id: 'image1',
+      type: 'image',
+      title: 'Generated Landscape',
+      content: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80',
+    },
+  },
   help: {
-    content: "This demo showcases all the agentic UI components. Available commands:\n\n• **\"analyze data\"** → Tool calls, tasks, thinking, charts\n• **\"write code\"** → Code generation with artifact panel\n• **\"spreadsheet\"** → Financial model with table artifact\n• **\"search\"** → Web search with multiple tool calls\n• **\"build\"** → Multi-step task progress\n• **\"deploy\"** → Approval flow for sensitive actions\n• **\"refactor\"** → Diff view showing code changes\n• **\"configure\"** → Question cards for user input\n\nEach response demonstrates different agentic UI patterns. Check out the **Docs** to learn how to integrate these into your app.",
+    content: "This demo showcases all the agentic UI components. Available commands:\n\n• **\"analyze data\"** → Tool calls, tasks, thinking, charts\n• **\"write code\"** → Code generation with artifact panel\n• **\"spreadsheet\"** → Financial model with table artifact\n• **\"search\"** → Web search with multiple tool calls\n• **\"build\"** → Multi-step task progress\n• **\"image\"** → Image generation artifact\n• **\"deploy\"** → Approval flow for sensitive actions\n• **\"refactor\"** → Diff view showing code changes\n• **\"configure\"** → Question cards for user input\n\nEach response demonstrates different agentic UI patterns. Check out the **Docs** to learn how to integrate these into your app.",
   },
 }
 
@@ -665,7 +680,7 @@ function ArtifactPanel({ artifact, onClose }: { artifact: Artifact | null; onClo
         <div className="text-center">
           <FileCode className="w-12 h-12 mx-auto mb-3 opacity-50" />
           <p className="text-sm">Artifacts will appear here</p>
-          <p className="text-xs mt-1">Try asking me to analyze data or write code</p>
+          <p className="text-xs mt-1">Try: spreadsheet, search, build, analyze...</p>
         </div>
       </div>
     )
@@ -685,6 +700,91 @@ function ArtifactPanel({ artifact, onClose }: { artifact: Artifact | null; onClo
     document: FileText,
   }
   const Icon = icons[artifact.type]
+
+  // Rich rendering based on artifact type
+  const renderContent = () => {
+    if (artifact.type === 'image') {
+      return (
+        <div className="flex items-center justify-center h-full bg-zinc-900 rounded-lg p-4">
+          <img
+            src={artifact.content}
+            alt={artifact.title}
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+          />
+        </div>
+      )
+    }
+
+    if (artifact.type === 'table') {
+      // Parse ASCII table and render as styled grid
+      const lines = artifact.content.split('\n').filter(l => l.trim())
+      const isAsciiTable = lines.some(l => l.includes('│') || l.includes('|'))
+
+      if (isAsciiTable) {
+        return (
+          <div className="bg-zinc-900/50 rounded-lg overflow-hidden border border-surface-border">
+            <div className="overflow-x-auto">
+              <pre className="text-sm font-mono text-zinc-300 p-4 whitespace-pre">{artifact.content}</pre>
+            </div>
+          </div>
+        )
+      }
+    }
+
+    if (artifact.type === 'chart') {
+      return (
+        <div className="bg-zinc-900/50 rounded-lg p-6 border border-surface-border">
+          <pre className="text-sm font-mono text-zinc-300 whitespace-pre leading-relaxed">{artifact.content}</pre>
+        </div>
+      )
+    }
+
+    if (artifact.type === 'document') {
+      // Render markdown-like content with better styling
+      const lines = artifact.content.split('\n')
+      return (
+        <div className="prose prose-invert prose-sm max-w-none">
+          {lines.map((line, i) => {
+            if (line.startsWith('# ')) {
+              return <h1 key={i} className="text-xl font-bold text-white mt-4 mb-2">{line.slice(2)}</h1>
+            }
+            if (line.startsWith('## ')) {
+              return <h2 key={i} className="text-lg font-semibold text-white mt-4 mb-2">{line.slice(3)}</h2>
+            }
+            if (line.startsWith('- ')) {
+              return <li key={i} className="text-zinc-300 ml-4">{line.slice(2)}</li>
+            }
+            if (line.startsWith('```')) {
+              return null
+            }
+            if (line.startsWith('*') && line.endsWith('*')) {
+              return <p key={i} className="text-zinc-500 italic text-sm">{line.slice(1, -1)}</p>
+            }
+            if (line.trim() === '---') {
+              return <hr key={i} className="border-zinc-700 my-4" />
+            }
+            if (line.trim()) {
+              return <p key={i} className="text-zinc-300 mb-2">{line}</p>
+            }
+            return <div key={i} className="h-2" />
+          })}
+        </div>
+      )
+    }
+
+    if (artifact.type === 'code') {
+      return (
+        <div className="bg-[#0d0d12] rounded-lg overflow-hidden border border-surface-border">
+          <pre className="p-4 overflow-x-auto text-sm font-mono leading-relaxed">
+            <code className="text-zinc-300">{artifact.content}</code>
+          </pre>
+        </div>
+      )
+    }
+
+    // Default: plain text
+    return <pre className="text-sm font-mono text-zinc-300 whitespace-pre-wrap">{artifact.content}</pre>
+  }
 
   return (
     <motion.div
@@ -716,7 +816,7 @@ function ArtifactPanel({ artifact, onClose }: { artifact: Artifact | null; onClo
         </div>
       </div>
       <div className="flex-1 overflow-auto p-4">
-        <pre className="text-sm font-mono text-zinc-300 whitespace-pre-wrap">{artifact.content}</pre>
+        {renderContent()}
       </div>
     </motion.div>
   )
@@ -727,13 +827,14 @@ function ChatDemo() {
     {
       id: '0',
       role: 'assistant',
-      content: "Welcome! This demo showcases all the agentic UI components. Try these:\n\n• **\"analyze data\"** → Tool calls, tasks, thinking, charts\n• **\"write code\"** → Code generation with artifacts\n• **\"spreadsheet\"** → Financial models with table artifacts\n• **\"search\"** → Web search with multiple tool calls\n• **\"build\"** → Multi-step task progress\n• **\"deploy\"** → Approval flow for sensitive actions\n• **\"refactor\"** → Diff view showing code changes\n• **\"configure\"** → Question cards for user input",
+      content: "Welcome! This demo showcases all the agentic UI components. Try these:\n\n• **\"analyze data\"** → Tool calls, tasks, thinking, charts\n• **\"write code\"** → Code generation with artifacts\n• **\"spreadsheet\"** → Financial models with tables\n• **\"search\"** → Web search with multiple tools\n• **\"build\"** → Multi-step task progress\n• **\"image\"** → Image generation artifact\n• **\"deploy\"** → Approval flow\n• **\"refactor\"** → Diff view\n• **\"configure\"** → Question cards",
     },
   ])
   const [input, setInput] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [thinkingExpanded, setThinkingExpanded] = useState(true)
   const [currentArtifact, setCurrentArtifact] = useState<Artifact | null>(null)
+  const [showArtifactPanel, setShowArtifactPanel] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -819,6 +920,8 @@ function ChatDemo() {
       responseKey = 'search'
     } else if (userInput.includes('build') || userInput.includes('compile') || userInput.includes('test')) {
       responseKey = 'build'
+    } else if (userInput.includes('image') || userInput.includes('picture') || userInput.includes('photo') || userInput.includes('generate')) {
+      responseKey = 'image'
     } else if (userInput.includes('deploy') || userInput.includes('production') || userInput.includes('release')) {
       responseKey = 'deploy'
     } else if (userInput.includes('refactor') || userInput.includes('diff') || userInput.includes('change')) {
@@ -891,6 +994,7 @@ function ChatDemo() {
 
     if (response.artifact) {
       setCurrentArtifact(response.artifact)
+      setShowArtifactPanel(true) // Auto-show panel when artifact is generated
     }
 
     setIsProcessing(false)
@@ -940,6 +1044,21 @@ function ChatDemo() {
                   onAnswer={(answer) => handleQuestion(message.id, answer)}
                 />
               )}
+              {message.artifact && (
+                <motion.button
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  onClick={() => {
+                    setCurrentArtifact(message.artifact!)
+                    setShowArtifactPanel(true)
+                  }}
+                  className="mx-4 mb-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-accent/10 border border-accent/20 text-accent text-sm hover:bg-accent/20 transition-colors"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>View {message.artifact.type}: {message.artifact.title}</span>
+                  <PanelRight className="w-4 h-4 ml-auto" />
+                </motion.button>
+              )}
             </div>
           ))}
 
@@ -960,7 +1079,7 @@ function ChatDemo() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-              placeholder="Try: analyze, code, spreadsheet, search, build, deploy, refactor..."
+              placeholder="Try: analyze, code, spreadsheet, search, build, image, deploy..."
               disabled={isProcessing}
               className="flex-1 px-4 py-3 rounded-xl border border-surface-border bg-surface-elevated text-sm placeholder:text-zinc-600 focus:outline-none focus:border-accent transition-colors disabled:opacity-50"
             />
@@ -980,17 +1099,40 @@ function ChatDemo() {
                 <Send className="w-5 h-5" />
               </button>
             )}
+            {/* Artifact panel toggle */}
+            <button
+              onClick={() => setShowArtifactPanel(!showArtifactPanel)}
+              className={clsx(
+                'p-3 rounded-xl transition-colors',
+                showArtifactPanel
+                  ? 'bg-accent/20 text-accent'
+                  : currentArtifact
+                    ? 'bg-accent text-white animate-pulse'
+                    : 'bg-surface-elevated text-zinc-400 hover:text-white'
+              )}
+              title={showArtifactPanel ? 'Hide artifact panel' : 'Show artifact panel'}
+            >
+              <PanelRight className="w-5 h-5" />
+            </button>
           </div>
         </div>
       </div>
 
       {/* Artifact Panel */}
-      <div
-        className="border-l border-surface-border bg-surface-elevated hidden lg:block"
-        style={{ flex: `${artifactRatio} 0 0%` }}
-      >
-        <ArtifactPanel artifact={currentArtifact} onClose={() => setCurrentArtifact(null)} />
-      </div>
+      <AnimatePresence>
+        {showArtifactPanel && (
+          <motion.div
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 'auto', opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="border-l border-surface-border bg-surface-elevated"
+            style={{ flex: `${artifactRatio} 0 0%`, minWidth: showArtifactPanel ? '300px' : 0 }}
+          >
+            <ArtifactPanel artifact={currentArtifact} onClose={() => setCurrentArtifact(null)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
