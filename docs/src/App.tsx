@@ -78,7 +78,7 @@ interface DemoMessage {
 
 interface Artifact {
   id: string
-  type: 'code' | 'image' | 'chart' | 'table' | 'document'
+  type: 'code' | 'image' | 'chart' | 'table' | 'document' | 'spreadsheet'
   title: string
   content: string
   language?: string
@@ -256,7 +256,7 @@ export async function refreshSession(token: string) {
     },
   },
   spreadsheet: {
-    content: "I've created a financial model based on your requirements. The spreadsheet includes projections for the next 12 months.",
+    content: "I've created a financial model based on your requirements. The spreadsheet includes projections and formulas for key metrics.",
     thinking: "Building a financial model with revenue projections, expenses, and cash flow calculations. I'll use standard SaaS metrics and include formulas for key ratios.",
     toolCalls: [
       { id: 't1', name: 'create_spreadsheet', input: { template: 'financial_model' }, status: 'complete' },
@@ -270,25 +270,20 @@ export async function refreshSession(token: string) {
     ],
     artifact: {
       id: 'spreadsheet1',
-      type: 'table',
+      type: 'spreadsheet',
       title: 'Financial Model Q1-Q4',
-      content: `┌─────────┬──────────┬──────────┬──────────┬──────────┐
-│  Month  │ Revenue  │ Expenses │   EBITDA │ Margin % │
-├─────────┼──────────┼──────────┼──────────┼──────────┤
-│  Jan    │  $45,000 │  $32,000 │  $13,000 │    28.9% │
-│  Feb    │  $52,000 │  $34,000 │  $18,000 │    34.6% │
-│  Mar    │  $61,000 │  $36,000 │  $25,000 │    41.0% │
-│  Apr    │  $68,000 │  $38,000 │  $30,000 │    44.1% │
-│  May    │  $75,000 │  $40,000 │  $35,000 │    46.7% │
-│  Jun    │  $82,000 │  $42,000 │  $40,000 │    48.8% │
-├─────────┼──────────┼──────────┼──────────┼──────────┤
-│  Total  │ $383,000 │ $222,000 │ $161,000 │    42.0% │
-└─────────┴──────────┴──────────┴──────────┴──────────┘
-
-📊 Key Metrics:
-• MRR Growth: +82% over 6 months
-• Burn Multiple: 1.4x (healthy)
-• Runway: 18 months at current rate`,
+      content: JSON.stringify({
+        headers: ['Month', 'Revenue', 'Expenses', 'EBITDA', 'Margin %'],
+        rows: [
+          ['Jan', 45000, 32000, 13000, '28.9%'],
+          ['Feb', 52000, 34000, 18000, '34.6%'],
+          ['Mar', 61000, 36000, 25000, '41.0%'],
+          ['Apr', 68000, 38000, 30000, '44.1%'],
+          ['May', 75000, 40000, 35000, '46.7%'],
+          ['Jun', 82000, 42000, 40000, '48.8%'],
+          ['Total', 383000, 222000, 161000, '42.0%'],
+        ],
+      }),
     },
   },
   search: {
@@ -671,6 +666,100 @@ function DiffView({ diff }: { diff: DemoDiff }) {
   )
 }
 
+// Rich Spreadsheet Viewer
+function SpreadsheetViewer({ data }: { data: { headers: string[]; rows: (string | number)[][] } }) {
+  const formatCell = (value: string | number) => {
+    if (typeof value === 'number') {
+      // Format numbers as currency
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(value)
+    }
+    return value
+  }
+
+  return (
+    <div className="w-full h-full overflow-auto bg-[#1a1a24] rounded-lg border border-zinc-700">
+      {/* Toolbar */}
+      <div className="flex items-center gap-1 px-2 py-1.5 bg-zinc-800/50 border-b border-zinc-700">
+        <div className="flex items-center gap-0.5">
+          {['B', 'I', 'U'].map(btn => (
+            <button key={btn} className="w-7 h-7 flex items-center justify-center text-xs font-semibold text-zinc-400 hover:bg-zinc-700 rounded">
+              {btn}
+            </button>
+          ))}
+        </div>
+        <div className="w-px h-5 bg-zinc-700 mx-1" />
+        <div className="flex items-center gap-0.5">
+          {['$', '%', ','].map(btn => (
+            <button key={btn} className="w-7 h-7 flex items-center justify-center text-xs text-zinc-400 hover:bg-zinc-700 rounded">
+              {btn}
+            </button>
+          ))}
+        </div>
+        <div className="ml-auto text-xs text-zinc-500">Financial Model</div>
+      </div>
+      {/* Spreadsheet Grid */}
+      <div className="overflow-auto">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr>
+              {/* Row number header */}
+              <th className="w-10 min-w-[40px] bg-zinc-800 border-r border-b border-zinc-700 text-zinc-500 text-xs p-1"></th>
+              {/* Column headers (A, B, C...) */}
+              {data.headers.map((_, i) => (
+                <th key={i} className="min-w-[100px] bg-zinc-800 border-r border-b border-zinc-700 text-zinc-400 text-xs font-normal p-1">
+                  {String.fromCharCode(65 + i)}
+                </th>
+              ))}
+            </tr>
+            <tr>
+              <th className="bg-zinc-800 border-r border-b border-zinc-700 text-zinc-500 text-xs p-1">1</th>
+              {data.headers.map((header, i) => (
+                <th key={i} className="bg-accent/10 border-r border-b border-zinc-700 text-accent font-semibold p-2 text-left">
+                  {header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {data.rows.map((row, rowIdx) => {
+              const isTotal = row[0] === 'Total'
+              return (
+                <tr key={rowIdx} className={isTotal ? 'bg-accent/5' : ''}>
+                  <td className="bg-zinc-800 border-r border-b border-zinc-700 text-zinc-500 text-xs p-1 text-center">
+                    {rowIdx + 2}
+                  </td>
+                  {row.map((cell, colIdx) => (
+                    <td
+                      key={colIdx}
+                      className={clsx(
+                        'border-r border-b border-zinc-700/50 p-2',
+                        colIdx === 0 ? 'text-zinc-300' : 'text-zinc-400 font-mono text-right',
+                        isTotal && 'font-semibold'
+                      )}
+                    >
+                      {colIdx === 0 ? cell : formatCell(cell)}
+                    </td>
+                  ))}
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      {/* Formula bar simulation */}
+      <div className="flex items-center gap-2 px-2 py-1.5 bg-zinc-800/30 border-t border-zinc-700 text-xs">
+        <span className="text-zinc-500">fx</span>
+        <span className="text-zinc-400 font-mono">=SUM(B2:B7)</span>
+      </div>
+    </div>
+  )
+}
+
 function ArtifactPanel({ artifact, onClose }: { artifact: Artifact | null; onClose: () => void }) {
   const [copied, setCopied] = useState(false)
 
@@ -692,17 +781,27 @@ function ArtifactPanel({ artifact, onClose }: { artifact: Artifact | null; onClo
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const icons = {
+  const icons: Record<string, typeof FileCode> = {
     code: FileCode,
     image: Image,
     chart: Table,
     table: Table,
     document: FileText,
+    spreadsheet: Table,
   }
-  const Icon = icons[artifact.type]
+  const Icon = icons[artifact.type] || FileCode
 
   // Rich rendering based on artifact type
   const renderContent = () => {
+    if (artifact.type === 'spreadsheet') {
+      try {
+        const data = JSON.parse(artifact.content)
+        return <SpreadsheetViewer data={data} />
+      } catch {
+        return <pre className="text-sm font-mono text-zinc-300 whitespace-pre-wrap">{artifact.content}</pre>
+      }
+    }
+
     if (artifact.type === 'image') {
       return (
         <div className="flex items-center justify-center h-full bg-zinc-900 rounded-lg p-4">
@@ -716,19 +815,81 @@ function ArtifactPanel({ artifact, onClose }: { artifact: Artifact | null; onClo
     }
 
     if (artifact.type === 'table') {
-      // Parse ASCII table and render as styled grid
+      // Try to parse as structured table data
       const lines = artifact.content.split('\n').filter(l => l.trim())
-      const isAsciiTable = lines.some(l => l.includes('│') || l.includes('|'))
 
-      if (isAsciiTable) {
-        return (
-          <div className="bg-zinc-900/50 rounded-lg overflow-hidden border border-surface-border">
-            <div className="overflow-x-auto">
-              <pre className="text-sm font-mono text-zinc-300 p-4 whitespace-pre">{artifact.content}</pre>
-            </div>
-          </div>
+      // Check if it's a simple CSV-like format or has table structure
+      const hasTableChars = lines.some(l => l.includes('│') || l.includes('|') || l.includes('┌'))
+
+      if (hasTableChars) {
+        // Parse the ASCII table into rows
+        const dataLines = lines.filter(l =>
+          !l.includes('┌') && !l.includes('└') && !l.includes('├') &&
+          !l.includes('─') && !l.startsWith('📊') && !l.startsWith('•') &&
+          l.includes('│')
         )
+
+        const rows = dataLines.map(line =>
+          line.split('│').map(cell => cell.trim()).filter(cell => cell)
+        )
+
+        if (rows.length > 0) {
+          const headerRow = rows[0]
+          const dataRows = rows.slice(1)
+
+          // Get footer content (metrics)
+          const footerLines = lines.filter(l => l.startsWith('📊') || l.startsWith('•'))
+
+          return (
+            <div className="space-y-4">
+              <div className="bg-zinc-900/50 rounded-lg overflow-hidden border border-surface-border">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-accent/10 border-b border-surface-border">
+                        {headerRow.map((cell, i) => (
+                          <th key={i} className="px-4 py-3 text-left font-semibold text-accent">{cell}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dataRows.map((row, i) => (
+                        <tr key={i} className={clsx(
+                          'border-b border-surface-border/50',
+                          row[0] === 'Total' && 'bg-accent/5 font-semibold'
+                        )}>
+                          {row.map((cell, j) => (
+                            <td key={j} className={clsx(
+                              'px-4 py-2',
+                              j === 0 ? 'text-zinc-300' : 'text-zinc-400 font-mono'
+                            )}>{cell}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              {footerLines.length > 0 && (
+                <div className="bg-zinc-900/30 rounded-lg p-4 border border-surface-border/50">
+                  {footerLines.map((line, i) => (
+                    <p key={i} className="text-sm text-zinc-400">{line}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        }
       }
+
+      // Fallback to pre-formatted text
+      return (
+        <div className="bg-zinc-900/50 rounded-lg overflow-hidden border border-surface-border">
+          <div className="overflow-x-auto">
+            <pre className="text-sm font-mono text-zinc-300 p-4 whitespace-pre leading-relaxed">{artifact.content}</pre>
+          </div>
+        </div>
+      )
     }
 
     if (artifact.type === 'chart') {
