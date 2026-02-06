@@ -32,18 +32,18 @@ interface ClaudeMessage {
 
 interface ClaudeStreamEvent {
   type: string
+  index?: number
   delta?: {
     type?: string
     text?: string
     thinking?: string
+    partial_json?: string
   }
   content_block?: {
     type: string
     id?: string
     name?: string
-    input?: unknown
   }
-  index?: number
 }
 
 export function createClaudeAdapter(config: ClaudeConfig = {}): ChatAdapter {
@@ -112,6 +112,8 @@ export function createClaudeAdapter(config: ClaudeConfig = {}): ChatAdapter {
       let content = ''
       let thinking = ''
       const toolCalls: ToolCall[] = []
+      const toolCallArgs: Record<number, string> = {} // Track args by index
+      const blockTypes: Record<number, string> = {} // Track block types by index
 
       for await (const event of parseSSEStream(response)) {
         if (event.data === '[DONE]') break
@@ -119,32 +121,66 @@ export function createClaudeAdapter(config: ClaudeConfig = {}): ChatAdapter {
         try {
           const data: ClaudeStreamEvent = JSON.parse(event.data)
 
-          if (data.type === 'content_block_delta') {
-            if (data.delta?.text) {
+          // Track content block types when they start
+          if (data.type === 'content_block_start' && data.index !== undefined) {
+            blockTypes[data.index] = data.content_block?.type || 'text'
+
+            // Initialize tool call when tool_use block starts
+            if (data.content_block?.type === 'tool_use') {
+              const tc: ToolCall = {
+                id: data.content_block.id || generateId(),
+                name: data.content_block.name || 'unknown',
+                input: {},
+                status: 'running',
+              }
+              toolCalls.push(tc)
+              toolCallArgs[data.index] = ''
+              onToolCall?.(tc)
+            }
+          }
+
+          // Handle content block deltas based on delta type
+          if (data.type === 'content_block_delta' && data.index !== undefined) {
+            // Text content
+            if (data.delta?.type === 'text_delta' && data.delta?.text) {
               content += data.delta.text
               onStream?.(data.delta.text)
             }
-            if (data.delta?.thinking) {
+
+            // Thinking content (extended thinking feature)
+            if (data.delta?.type === 'thinking_delta' && data.delta?.thinking) {
               thinking += data.delta.thinking
               onThinking?.(thinking)
             }
-          }
 
-          if (data.type === 'content_block_start' && data.content_block?.type === 'tool_use') {
-            const tc: ToolCall = {
-              id: data.content_block.id || generateId(),
-              name: data.content_block.name || 'unknown',
-              input: (data.content_block.input as Record<string, unknown>) || {},
-              status: 'running',
+            // Tool use arguments (streamed as partial JSON)
+            if (data.delta?.type === 'input_json_delta' && data.delta?.partial_json) {
+              toolCallArgs[data.index] = (toolCallArgs[data.index] || '') + data.delta.partial_json
             }
-            toolCalls.push(tc)
-            onToolCall?.(tc)
           }
 
-          if (data.type === 'content_block_stop' && toolCalls.length > 0) {
-            const lastTool = toolCalls[toolCalls.length - 1]
-            lastTool.status = 'complete'
-            onToolCall?.(lastTool)
+          // Finalize tool calls when block stops
+          if (data.type === 'content_block_stop' && data.index !== undefined) {
+            const blockType = blockTypes[data.index]
+            if (blockType === 'tool_use') {
+              // Find the tool call for this block and parse its arguments
+              const toolIndex = Object.keys(blockTypes)
+                .filter(k => blockTypes[parseInt(k)] === 'tool_use')
+                .indexOf(String(data.index))
+
+              if (toolIndex >= 0 && toolIndex < toolCalls.length) {
+                const tc = toolCalls[toolIndex]
+                if (toolCallArgs[data.index]) {
+                  try {
+                    tc.input = JSON.parse(toolCallArgs[data.index])
+                  } catch {
+                    tc.input = { raw: toolCallArgs[data.index] }
+                  }
+                }
+                tc.status = 'complete'
+                onToolCall?.(tc)
+              }
+            }
           }
         } catch {
           // Skip invalid JSON

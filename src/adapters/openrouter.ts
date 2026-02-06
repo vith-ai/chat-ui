@@ -42,6 +42,11 @@ interface OpenRouterStreamChunk {
     delta: {
       content?: string
       role?: string
+      tool_calls?: Array<{
+        index: number
+        id?: string
+        function?: { name?: string; arguments?: string }
+      }>
     }
     finish_reason?: string
   }>
@@ -100,7 +105,7 @@ export function createOpenRouterAdapter(config: OpenRouterConfig = {}): ChatAdap
     },
 
     async sendMessage(messages, options = {}) {
-      const { onStream, signal } = options
+      const { onStream, onToolCall, signal } = options
 
       const requestHeaders: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -130,6 +135,7 @@ export function createOpenRouterAdapter(config: OpenRouterConfig = {}): ChatAdap
 
       let content = ''
       const toolCalls: ToolCall[] = []
+      const toolCallArgs: Record<number, string> = {}
 
       for await (const event of parseSSEStream(response)) {
         if (event.data === '[DONE]') break
@@ -142,8 +148,43 @@ export function createOpenRouterAdapter(config: OpenRouterConfig = {}): ChatAdap
             content += delta.content
             onStream?.(delta.content)
           }
+
+          // Parse tool calls (OpenAI-compatible format)
+          if (delta?.tool_calls) {
+            for (const tc of delta.tool_calls) {
+              if (tc.id) {
+                // New tool call starting
+                const toolCall: ToolCall = {
+                  id: tc.id,
+                  name: tc.function?.name || 'unknown',
+                  input: {},
+                  status: 'running',
+                }
+                toolCalls.push(toolCall)
+                toolCallArgs[tc.index] = ''
+                onToolCall?.(toolCall)
+              }
+
+              if (tc.function?.arguments) {
+                toolCallArgs[tc.index] = (toolCallArgs[tc.index] || '') + tc.function.arguments
+              }
+            }
+          }
         } catch {
           // Skip invalid JSON
+        }
+      }
+
+      // Parse accumulated tool call arguments
+      for (let i = 0; i < toolCalls.length; i++) {
+        if (toolCallArgs[i]) {
+          try {
+            toolCalls[i].input = JSON.parse(toolCallArgs[i])
+          } catch {
+            toolCalls[i].input = { raw: toolCallArgs[i] }
+          }
+          toolCalls[i].status = 'complete'
+          onToolCall?.(toolCalls[i])
         }
       }
 

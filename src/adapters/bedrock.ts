@@ -8,7 +8,12 @@
  * - Mistral models
  * - Streaming via Bedrock Runtime
  *
- * Note: Requires AWS credentials configured (env vars, IAM role, or explicit config)
+ * IMPORTANT: This adapter requires @aws-sdk/client-bedrock-runtime
+ * Install it with: npm install @aws-sdk/client-bedrock-runtime
+ *
+ * This adapter is designed for server-side use (Node.js) because:
+ * 1. AWS credentials should not be exposed in browser code
+ * 2. Bedrock uses AWS Event Stream format requiring SDK parsing
  */
 
 import type { ChatAdapter, ProviderConfig, ToolCall } from '../types'
@@ -19,151 +24,250 @@ export interface BedrockConfig extends ProviderConfig {
   region?: string
   /** Model ID (e.g., anthropic.claude-3-sonnet-20240229-v1:0) */
   model?: string
-  /** AWS access key ID */
-  accessKeyId?: string
-  /** AWS secret access key */
-  secretAccessKey?: string
-  /** AWS session token (for temporary credentials) */
-  sessionToken?: string
+  /** AWS credentials - if not provided, uses default credential chain */
+  credentials?: {
+    accessKeyId: string
+    secretAccessKey: string
+    sessionToken?: string
+  }
   /** Max tokens to generate */
   maxTokens?: number
   /** System prompt */
   systemPrompt?: string
+  /** Enable extended thinking (Claude models only) */
+  enableThinking?: boolean
 }
 
-interface BedrockClaudeRequest {
-  anthropic_version: string
-  max_tokens: number
-  system?: string
-  messages: Array<{ role: string; content: string }>
+// Type definitions for AWS SDK (user must install @aws-sdk/client-bedrock-runtime)
+interface BedrockClient {
+  send(command: unknown): Promise<BedrockStreamResponse>
+}
+
+interface BedrockStreamResponse {
+  stream?: AsyncIterable<BedrockStreamEvent>
+}
+
+interface BedrockStreamEvent {
+  chunk?: {
+    bytes?: Uint8Array
+  }
+}
+
+interface ClaudeStreamDelta {
+  type: string
+  index?: number
+  delta?: {
+    type?: string
+    text?: string
+    thinking?: string
+    partial_json?: string
+  }
+  content_block?: {
+    type: string
+    id?: string
+    name?: string
+  }
 }
 
 export function createBedrockAdapter(config: BedrockConfig = {}): ChatAdapter {
   const {
     region = 'us-east-1',
     model = 'anthropic.claude-3-sonnet-20240229-v1:0',
+    credentials,
     maxTokens = 4096,
     systemPrompt,
+    enableThinking = false,
   } = config
-
-  // Note: In a real implementation, you'd use AWS SDK v3
-  // This is a simplified version showing the structure
-  // Credentials: accessKeyId, secretAccessKey, sessionToken (or env vars)
 
   const isClaude = model.includes('anthropic.claude')
   const isTitan = model.includes('amazon.titan')
+
+  // Lazy-load AWS SDK to avoid bundling issues
+  let bedrockClient: BedrockClient | null = null
+
+  const getClient = async (): Promise<BedrockClient> => {
+    if (bedrockClient) return bedrockClient
+
+    try {
+      // Dynamic import to avoid bundling AWS SDK in browser builds
+      // Using Function constructor to prevent static analysis
+      const importFn = new Function('specifier', 'return import(specifier)')
+      const sdk = await importFn('@aws-sdk/client-bedrock-runtime')
+      const { BedrockRuntimeClient } = sdk
+
+      const clientConfig: Record<string, unknown> = { region }
+      if (credentials) {
+        clientConfig.credentials = credentials
+      }
+
+      bedrockClient = new BedrockRuntimeClient(clientConfig) as unknown as BedrockClient
+      return bedrockClient
+    } catch {
+      throw new Error(
+        'AWS SDK not found. Install it with: npm install @aws-sdk/client-bedrock-runtime\n' +
+          'This adapter is designed for server-side (Node.js) use only.'
+      )
+    }
+  }
 
   return {
     providerName: 'AWS Bedrock',
 
     features: {
       streaming: true,
-      thinking: isClaude, // Only Claude supports thinking on Bedrock
-      toolUse: isClaude, // Tool use support varies
+      thinking: isClaude && enableThinking,
+      toolUse: isClaude,
     },
 
     async sendMessage(messages, options = {}) {
-      const { onStream, onThinking, signal } = options
-      // Note: AWS credentials (getCredentials()) would be used for signing in production
-      // with @aws-sdk/client-bedrock-runtime. This is a simplified example.
+      const { onStream, onThinking, onToolCall, signal } = options
 
-      // Build the request based on model type
+      const client = await getClient()
+
+      // Build request body based on model type
       let body: string
 
       if (isClaude) {
-        const claudeRequest: BedrockClaudeRequest = {
+        const claudeMessages = messages
+          .filter((m) => m.role !== 'system')
+          .map((m) => ({
+            role: m.role,
+            content: m.content,
+          }))
+
+        body = JSON.stringify({
           anthropic_version: 'bedrock-2023-05-31',
           max_tokens: maxTokens,
-          system: systemPrompt,
-          messages: messages
-            .filter((m) => m.role !== 'system')
-            .map((m) => ({
-              role: m.role,
-              content: m.content,
-            })),
-        }
-        body = JSON.stringify(claudeRequest)
+          system: systemPrompt || messages.find((m) => m.role === 'system')?.content,
+          messages: claudeMessages,
+        })
       } else if (isTitan) {
+        const prompt = messages.map((m) => `${m.role}: ${m.content}`).join('\n')
         body = JSON.stringify({
-          inputText: messages.map((m) => `${m.role}: ${m.content}`).join('\n'),
+          inputText: systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt,
           textGenerationConfig: {
             maxTokenCount: maxTokens,
             temperature: 0.7,
           },
         })
       } else {
-        // Generic format for other models
+        // Llama/Mistral format
+        const prompt = messages.map((m) => m.content).join('\n\n')
         body = JSON.stringify({
-          prompt: messages.map((m) => m.content).join('\n\n'),
+          prompt: systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt,
           max_gen_len: maxTokens,
         })
       }
 
-      const endpoint = `https://bedrock-runtime.${region}.amazonaws.com/model/${model}/invoke-with-response-stream`
+      // Dynamically import the command class
+      const importFn = new Function('specifier', 'return import(specifier)')
+      const sdk = await importFn('@aws-sdk/client-bedrock-runtime')
+      const { InvokeModelWithResponseStreamCommand } = sdk
 
-      // AWS Signature V4 signing would go here
-      // For now, this is a simplified placeholder
-      // In production, use @aws-sdk/client-bedrock-runtime
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // AWS auth headers would be added here after signing
-          'X-Amz-Target': 'AmazonBedrockRuntime.InvokeModelWithResponseStream',
-        },
-        body,
-        signal,
+      const command = new InvokeModelWithResponseStreamCommand({
+        modelId: model,
+        body: new TextEncoder().encode(body),
+        contentType: 'application/json',
+        accept: 'application/json',
       })
 
-      if (!response.ok) {
-        const error = await response.text()
-        throw new Error(`Bedrock API error: ${response.status} - ${error}`)
+      // Handle abort signal
+      if (signal) {
+        signal.addEventListener('abort', () => {
+          // Note: AWS SDK has its own abort handling
+        })
       }
 
-      // Parse streaming response (Bedrock uses a custom binary format)
-      // This is simplified - real implementation needs AWS event stream parsing
+      const response = await client.send(command)
+
       let content = ''
       let thinking = ''
       const toolCalls: ToolCall[] = []
+      const toolCallArgs: Record<number, string> = {}
+      const blockTypes: Record<number, string> = {}
+      const decoder = new TextDecoder()
 
-      const reader = response.body?.getReader()
-      if (reader) {
-        const decoder = new TextDecoder()
+      if (response.stream) {
+        for await (const event of response.stream) {
+          if (event.chunk?.bytes) {
+            const chunkText = decoder.decode(event.chunk.bytes)
 
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
+            try {
+              const parsed = JSON.parse(chunkText)
 
-          const chunk = decoder.decode(value)
-          // Parse the chunk based on model type
-          // Bedrock wraps responses differently per model
+              if (isClaude) {
+                // Handle Claude's streaming format on Bedrock
+                const data = parsed as ClaudeStreamDelta
 
-          try {
-            const parsed = JSON.parse(chunk)
+                if (data.type === 'content_block_start' && data.index !== undefined) {
+                  blockTypes[data.index] = data.content_block?.type || 'text'
 
-            if (isClaude) {
-              if (parsed.delta?.text) {
-                content += parsed.delta.text
-                onStream?.(parsed.delta.text)
+                  if (data.content_block?.type === 'tool_use') {
+                    const tc: ToolCall = {
+                      id: data.content_block.id || generateId(),
+                      name: data.content_block.name || 'unknown',
+                      input: {},
+                      status: 'running',
+                    }
+                    toolCalls.push(tc)
+                    toolCallArgs[data.index] = ''
+                    onToolCall?.(tc)
+                  }
+                }
+
+                if (data.type === 'content_block_delta' && data.index !== undefined) {
+                  if (data.delta?.type === 'text_delta' && data.delta?.text) {
+                    content += data.delta.text
+                    onStream?.(data.delta.text)
+                  }
+
+                  if (data.delta?.type === 'thinking_delta' && data.delta?.thinking) {
+                    thinking += data.delta.thinking
+                    onThinking?.(thinking)
+                  }
+
+                  if (data.delta?.type === 'input_json_delta' && data.delta?.partial_json) {
+                    toolCallArgs[data.index] =
+                      (toolCallArgs[data.index] || '') + data.delta.partial_json
+                  }
+                }
+
+                if (data.type === 'content_block_stop' && data.index !== undefined) {
+                  if (blockTypes[data.index] === 'tool_use') {
+                    const toolIndex = Object.keys(blockTypes)
+                      .filter((k) => blockTypes[parseInt(k)] === 'tool_use')
+                      .indexOf(String(data.index))
+
+                    if (toolIndex >= 0 && toolIndex < toolCalls.length) {
+                      const tc = toolCalls[toolIndex]
+                      if (toolCallArgs[data.index]) {
+                        try {
+                          tc.input = JSON.parse(toolCallArgs[data.index])
+                        } catch {
+                          tc.input = { raw: toolCallArgs[data.index] }
+                        }
+                      }
+                      tc.status = 'complete'
+                      onToolCall?.(tc)
+                    }
+                  }
+                }
+              } else if (isTitan) {
+                // Titan streaming format
+                if (parsed.outputText) {
+                  content += parsed.outputText
+                  onStream?.(parsed.outputText)
+                }
+              } else {
+                // Llama/Mistral format
+                if (parsed.generation) {
+                  content += parsed.generation
+                  onStream?.(parsed.generation)
+                }
               }
-              if (parsed.delta?.thinking) {
-                thinking += parsed.delta.thinking
-                onThinking?.(thinking)
-              }
-            } else if (isTitan) {
-              if (parsed.outputText) {
-                content += parsed.outputText
-                onStream?.(parsed.outputText)
-              }
-            } else {
-              if (parsed.generation) {
-                content += parsed.generation
-                onStream?.(parsed.generation)
-              }
+            } catch {
+              // Skip invalid JSON chunks
             }
-          } catch {
-            // Binary frame, skip
           }
         }
       }
@@ -175,9 +279,39 @@ export function createBedrockAdapter(config: BedrockConfig = {}): ChatAdapter {
         thinking: thinking || undefined,
         toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
         timestamp: new Date(),
+        metadata: {
+          model,
+          provider: 'bedrock',
+          region,
+        },
       }
     },
   }
 }
 
 export default createBedrockAdapter
+
+/**
+ * Helper to list available foundation models in Bedrock
+ * Requires @aws-sdk/client-bedrock
+ */
+export async function listBedrockModels(region = 'us-east-1'): Promise<string[]> {
+  try {
+    const importFn = new Function('specifier', 'return import(specifier)')
+    const sdk = await importFn('@aws-sdk/client-bedrock')
+    const { BedrockClient, ListFoundationModelsCommand } = sdk
+
+    const client = new BedrockClient({ region })
+    const response = await client.send(new ListFoundationModelsCommand({}))
+
+    return (
+      response.modelSummaries?.map((m: { modelId?: string }) => m.modelId || '').filter(Boolean) ||
+      []
+    )
+  } catch {
+    throw new Error(
+      'AWS SDK not found. Install it with: npm install @aws-sdk/client-bedrock\n' +
+        'This function is designed for server-side (Node.js) use only.'
+    )
+  }
+}

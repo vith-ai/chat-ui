@@ -14,6 +14,11 @@ export default defineConfig({
   splitting: false,
   sourcemap: true,
   clean: true,
-  external: ['react', 'react-dom'],
+  external: [
+    'react',
+    'react-dom',
+    '@aws-sdk/client-bedrock-runtime',
+    '@aws-sdk/client-bedrock',
+  ],
   treeshake: true,
 })
