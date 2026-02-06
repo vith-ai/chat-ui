@@ -449,12 +449,11 @@ registry.register({
   ),
 })
 
-// Register spreadsheet renderer
-// Requires: npm install @handsontable/react handsontable
+// Register spreadsheet renderer (use any library you prefer)
 registry.register({
   types: ['spreadsheet', 'csv'],
   render: (artifact) => (
-    <Handsontable data={parseCSV(artifact.content)} />
+    <YourSpreadsheetComponent data={parseCSV(artifact.content)} />
   ),
 })
 
@@ -479,17 +478,19 @@ const artifact = createArtifact(content, {
 })
 ```
 
-### Built-in vs Optional Dependencies
+### Bring Your Own Renderers
 
-The library includes built-in renderers for basic display. For enhanced rendering, install optional dependencies:
+The library provides artifact type detection and a registry system, but **does not include renderers**. You register your own renderers using any libraries you prefer:
 
-| Feature | Package | Purpose |
-|---------|---------|---------|
-| Syntax highlighting | `shiki` or `prism-react-renderer` | Code highlighting |
-| Markdown | `react-markdown` | Rich markdown rendering |
-| Spreadsheets | `@handsontable/react` + `handsontable` | Excel-like grids |
-| PDFs | `react-pdf` | PDF viewing |
-| Diagrams | `mermaid` | Flowcharts, diagrams |
+| Artifact Type | Example Libraries | Purpose |
+|---------------|-------------------|---------|
+| `code` | `shiki`, `prism-react-renderer` | Syntax highlighting |
+| `markdown` | `react-markdown` | Rich markdown |
+| `spreadsheet`, `csv` | Any grid library | Tabular data |
+| `pdf` | `react-pdf` | PDF viewing |
+| `image` | Native `<img>` | Image display |
+| `html` | `iframe` or sanitized render | HTML content |
+| `custom` | Your implementation | Anything else |
 
 ## Permission System
 
@@ -699,9 +700,6 @@ npm install prism-react-renderer     # Alternative
 
 # Rich markdown
 npm install react-markdown remark-gfm
-
-# Spreadsheets
-npm install @handsontable/react handsontable hyperformula
 
 # PDF viewing
 npm install react-pdf
