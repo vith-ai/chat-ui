@@ -14,6 +14,9 @@ import { TodoBox } from './TodoBox'
 import { QuestionCard } from './QuestionCard'
 import { ToolCallCard } from './ToolCallCard'
 
+/** Layout options for empty state */
+export type EmptyStateLayout = 'default' | 'top-input'
+
 export interface ChatContainerProps {
   /** List of messages to display */
   messages: ChatMessage[]
@@ -45,6 +48,22 @@ export interface ChatContainerProps {
   userAvatar?: React.ReactNode
   /** Welcome message when no messages */
   welcomeMessage?: React.ReactNode
+  /** Center the chat with max-width for better readability (useful when displayed full-width) */
+  centered?: boolean
+  /**
+   * Layout for empty state (no messages)
+   * - 'default': Input at bottom, welcomeMessage centered
+   * - 'top-input': Input at top, welcomeMessage centered below (like ChatGPT/Claude)
+   * @default 'default'
+   */
+  emptyStateLayout?: EmptyStateLayout
+  /** Placeholder text for input when in empty state (falls back to placeholder) */
+  emptyStatePlaceholder?: string
+  /**
+   * Show input hint text ("Enter to send · Shift+Enter for new line")
+   * @default true when emptyStateLayout is 'top-input', false otherwise
+   */
+  showInputHint?: boolean
 }
 
 export function ChatContainer({
@@ -63,10 +82,22 @@ export function ChatContainer({
   assistantAvatar,
   userAvatar,
   welcomeMessage,
+  centered = false,
+  emptyStateLayout = 'default',
+  emptyStatePlaceholder,
+  showInputHint,
 }: ChatContainerProps) {
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  // Determine if we should show the hint
+  const shouldShowHint = showInputHint ?? (emptyStateLayout === 'top-input' && messages.length === 0)
+
+  // Use empty state placeholder when empty, otherwise use regular placeholder
+  const currentPlaceholder = messages.length === 0 && emptyStatePlaceholder
+    ? emptyStatePlaceholder
+    : placeholder
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -91,13 +122,16 @@ export function ChatContainer({
     }
   }
 
-  // Auto-resize textarea
+  // Auto-resize textarea (larger max for empty state with top-input layout)
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.style.height = 'auto'
-      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 200) + 'px'
+      const isEmptyTopInput = emptyStateLayout === 'top-input' && messages.length === 0
+      const maxHeight = isEmptyTopInput ? 300 : 200
+      const minHeight = isEmptyTopInput ? 80 : 36
+      inputRef.current.style.height = Math.max(minHeight, Math.min(inputRef.current.scrollHeight, maxHeight)) + 'px'
     }
-  }, [input])
+  }, [input, messages.length, emptyStateLayout])
 
   // Apply theme as CSS variables
   const themeStyle = theme
@@ -129,6 +163,150 @@ export function ChatContainer({
     )
   }
 
+  // Input component (reused in both layouts)
+  const renderInput = (isTopInput = false) => {
+    if (isTopInput) {
+      // Top-input style: textarea with button inside a styled container
+      return (
+        <div className={clsx('p-4', centered && 'max-w-3xl mx-auto')}>
+          <div className="bg-[var(--chat-surface)] border border-[var(--chat-border)] rounded-xl focus-within:border-[var(--chat-accent)] focus-within:ring-1 focus-within:ring-[var(--chat-accent)]/50 transition-all">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={currentPlaceholder}
+              disabled={isProcessing}
+              rows={3}
+              className={clsx(
+                'w-full px-4 py-3 bg-transparent',
+                'text-sm text-[var(--chat-text)] placeholder:text-[var(--chat-text-secondary)]',
+                'focus:outline-none resize-none',
+                'disabled:opacity-50'
+              )}
+            />
+            <div className="px-4 pb-3 flex items-center justify-between">
+              {shouldShowHint ? (
+                <p className="text-xs text-[var(--chat-text-secondary)]">
+                  Enter to send · Shift+Enter for new line
+                </p>
+              ) : (
+                <div />
+              )}
+              <div className="flex items-center gap-2">
+                {isProcessing ? (
+                  <button
+                    type="button"
+                    onClick={onStop}
+                    className={clsx(
+                      'px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-medium',
+                      'bg-[var(--chat-error)]/20 hover:bg-[var(--chat-error)]/30 text-[var(--chat-error)]'
+                    )}
+                  >
+                    <Square className="w-3 h-3" />
+                    Stop
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={(e) => handleSubmit(e)}
+                    disabled={!input.trim()}
+                    className={clsx(
+                      'px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-medium',
+                      input.trim()
+                        ? 'bg-[var(--chat-accent)] hover:bg-[var(--chat-accent-hover)] text-white'
+                        : 'bg-[var(--chat-border)] text-[var(--chat-text-secondary)] cursor-not-allowed'
+                    )}
+                  >
+                    <Send className="w-3 h-3" />
+                    Send
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    // Default bottom input style
+    return (
+      <div className="border-t border-[var(--chat-border)] p-4">
+        <form onSubmit={handleSubmit} className={clsx('flex gap-2', centered && 'max-w-3xl mx-auto')}>
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={currentPlaceholder}
+            disabled={isProcessing}
+            rows={1}
+            className={clsx(
+              'flex-1 px-4 py-3 rounded-xl border border-[var(--chat-border)] bg-[var(--chat-surface)]',
+              'text-sm text-[var(--chat-text)] placeholder:text-[var(--chat-text-secondary)]',
+              'focus:outline-none focus:border-[var(--chat-accent)] resize-none',
+              'disabled:opacity-50'
+            )}
+          />
+
+          {isProcessing ? (
+            <button
+              type="button"
+              onClick={onStop}
+              className={clsx(
+                'flex-shrink-0 p-3 rounded-xl bg-[var(--chat-error)] text-white',
+                'hover:bg-[var(--chat-error)]/80 transition-colors'
+              )}
+            >
+              <Square className="w-5 h-5" />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={!input.trim()}
+              className={clsx(
+                'flex-shrink-0 p-3 rounded-xl bg-[var(--chat-accent)] text-white',
+                'hover:bg-[var(--chat-accent-hover)] transition-colors',
+                'disabled:opacity-50 disabled:cursor-not-allowed'
+              )}
+            >
+              <Send className="w-5 h-5" />
+            </button>
+          )}
+        </form>
+        {shouldShowHint && (
+          <p className={clsx('mt-2 text-xs text-center text-[var(--chat-text-secondary)]', centered && 'max-w-3xl mx-auto')}>
+            Enter to send · Shift+Enter for new line
+          </p>
+        )}
+      </div>
+    )
+  }
+
+  // Empty state with top-input layout
+  if (messages.length === 0 && emptyStateLayout === 'top-input') {
+    return (
+      <div
+        className={clsx(
+          'flex flex-col h-full bg-[var(--chat-bg)] text-[var(--chat-text)]',
+          className
+        )}
+        style={themeStyle}
+      >
+        {/* Input at top */}
+        {renderInput(true)}
+
+        {/* Welcome message centered in remaining space */}
+        {welcomeMessage && (
+          <div className="flex-1 flex flex-col items-center justify-center p-4">
+            {welcomeMessage}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Default layout (or when there are messages)
   return (
     <div
       className={clsx(
@@ -144,7 +322,7 @@ export function ChatContainer({
             {welcomeMessage}
           </div>
         ) : (
-          <div className="py-4">
+          <div className={clsx('py-4', centered && 'max-w-3xl mx-auto')}>
             {messages.map((message) => (
               <MessageBubble
                 key={message.id}
@@ -200,50 +378,7 @@ export function ChatContainer({
       </div>
 
       {/* Input area */}
-      <div className="border-t border-[var(--chat-border)] p-4">
-        <form onSubmit={handleSubmit} className="flex gap-2">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            disabled={isProcessing}
-            rows={1}
-            className={clsx(
-              'flex-1 px-4 py-3 rounded-xl border border-[var(--chat-border)] bg-[var(--chat-surface)]',
-              'text-sm text-[var(--chat-text)] placeholder:text-[var(--chat-text-secondary)]',
-              'focus:outline-none focus:border-[var(--chat-accent)] resize-none',
-              'disabled:opacity-50'
-            )}
-          />
-
-          {isProcessing ? (
-            <button
-              type="button"
-              onClick={onStop}
-              className={clsx(
-                'flex-shrink-0 p-3 rounded-xl bg-[var(--chat-error)] text-white',
-                'hover:bg-[var(--chat-error)]/80 transition-colors'
-              )}
-            >
-              <Square className="w-5 h-5" />
-            </button>
-          ) : (
-            <button
-              type="submit"
-              disabled={!input.trim()}
-              className={clsx(
-                'flex-shrink-0 p-3 rounded-xl bg-[var(--chat-accent)] text-white',
-                'hover:bg-[var(--chat-accent-hover)] transition-colors',
-                'disabled:opacity-50 disabled:cursor-not-allowed'
-              )}
-            >
-              <Send className="w-5 h-5" />
-            </button>
-          )}
-        </form>
-      </div>
+      {renderInput(false)}
     </div>
   )
 }

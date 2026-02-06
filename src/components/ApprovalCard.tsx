@@ -87,14 +87,14 @@ export function ApprovalCard({
         )}
       </div>
 
-      <div className="flex border-t border-[var(--chat-border)]">
+      <div className="flex gap-3 p-4 pt-0">
         <button
           onClick={onDeny}
           disabled={disabled}
           className={clsx(
-            'flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium',
-            'text-[var(--chat-error)] hover:bg-[var(--chat-error)]/10 transition-colors',
-            'border-r border-[var(--chat-border)]',
+            'flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium',
+            'bg-[var(--chat-error)]/10 text-[var(--chat-error)] border border-[var(--chat-error)]/30',
+            'hover:bg-[var(--chat-error)]/20 transition-colors',
             'disabled:opacity-50 disabled:cursor-not-allowed'
           )}
         >
@@ -105,8 +105,9 @@ export function ApprovalCard({
           onClick={onApprove}
           disabled={disabled}
           className={clsx(
-            'flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium',
-            'text-[var(--chat-success)] hover:bg-[var(--chat-success)]/10 transition-colors',
+            'flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium',
+            'bg-[var(--chat-success)] text-white',
+            'hover:bg-[var(--chat-success)]/90 transition-colors',
             'disabled:opacity-50 disabled:cursor-not-allowed'
           )}
         >

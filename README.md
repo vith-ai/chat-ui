@@ -238,6 +238,44 @@ The main container that combines all chat elements:
 />
 ```
 
+#### Empty State Layout
+
+Control how the chat appears when there are no messages. Use `emptyStateLayout="top-input"` for a modern layout like ChatGPT or Claude, where the input appears at the top with welcome content centered below:
+
+```tsx
+<ChatContainer
+  messages={messages}
+  onSend={handleSend}
+
+  // Empty state configuration
+  emptyStateLayout="top-input"              // 'default' | 'top-input'
+  emptyStatePlaceholder="Ask me anything..."  // Optional different placeholder when empty
+  showInputHint={true}                       // Show "Enter to send · Shift+Enter for new line"
+
+  // Custom welcome content (centered below input when using 'top-input')
+  welcomeMessage={
+    <div className="text-center">
+      <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center mx-auto mb-3">
+        <MessageSquare className="w-6 h-6 text-purple-500" />
+      </div>
+      <h2 className="text-sm font-medium mb-1">Start a conversation</h2>
+      <p className="text-xs text-gray-500 mb-4">Try a command below</p>
+      <div className="flex flex-wrap justify-center gap-2">
+        {['analyze', 'code', 'search'].map(cmd => (
+          <button
+            key={cmd}
+            onClick={() => handleQuickAction(cmd)}
+            className="px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm"
+          >
+            {cmd}
+          </button>
+        ))}
+      </div>
+    </div>
+  }
+/>
+```
+
 ### Individual Components
 
 Use components individually for more control:
@@ -679,6 +717,7 @@ import type {
   DiffViewProps,
   QuestionCardProps,
   ChatContainerProps,
+  EmptyStateLayout,
 } from '@vith-ai/chat-ui'
 ```
 

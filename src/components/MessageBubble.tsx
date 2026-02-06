@@ -36,19 +36,19 @@ export function MessageBubble({
         if (match) {
           const [, lang, code] = match
           return (
-            <div key={index} className="my-3">
+            <div key={index} className="my-2">
               {lang && (
-                <div className="text-xs text-[var(--chat-text-secondary)] bg-[var(--chat-surface)] px-3 py-1 rounded-t-lg border-b border-[var(--chat-border)]">
+                <div className="text-xs text-[var(--chat-text-secondary)] bg-[var(--chat-bg)] px-3 py-1 rounded-t-lg border-b border-[var(--chat-border)]">
                   {lang}
                 </div>
               )}
               <pre
                 className={clsx(
-                  'chat-code-block p-3 bg-[var(--chat-surface)] overflow-x-auto',
+                  'chat-code-block p-3 bg-[var(--chat-bg)] overflow-x-auto',
                   lang ? 'rounded-b-lg' : 'rounded-lg'
                 )}
               >
-                <code className="text-[var(--chat-text)]">{code.trim()}</code>
+                <code className="text-[13px] font-mono text-[var(--chat-text)]">{code.trim()}</code>
               </pre>
             </div>
           )
@@ -74,7 +74,7 @@ export function MessageBubble({
       // Headers
       if (line.startsWith('### ')) {
         elements.push(
-          <h3 key={i} className="text-base font-semibold text-[var(--chat-text)] mt-4 mb-2">
+          <h3 key={i} className="text-sm font-semibold text-[var(--chat-text)] mt-3 mb-1">
             {line.slice(4)}
           </h3>
         )
@@ -82,7 +82,7 @@ export function MessageBubble({
       }
       if (line.startsWith('## ')) {
         elements.push(
-          <h2 key={i} className="text-lg font-semibold text-[var(--chat-text)] mt-4 mb-2">
+          <h2 key={i} className="text-base font-semibold text-[var(--chat-text)] mt-3 mb-1">
             {line.slice(3)}
           </h2>
         )
@@ -90,7 +90,7 @@ export function MessageBubble({
       }
       if (line.startsWith('# ')) {
         elements.push(
-          <h1 key={i} className="text-xl font-bold text-[var(--chat-text)] mt-4 mb-2">
+          <h1 key={i} className="text-lg font-bold text-[var(--chat-text)] mt-3 mb-1">
             {line.slice(2)}
           </h1>
         )
@@ -100,7 +100,7 @@ export function MessageBubble({
       // List items
       if (line.match(/^[\-\*]\s/)) {
         elements.push(
-          <div key={i} className="flex gap-2 ml-2">
+          <div key={i} className="flex gap-2 my-0.5 ml-1">
             <span className="text-[var(--chat-accent)]">•</span>
             <span>{renderInline(line.slice(2))}</span>
           </div>
@@ -112,8 +112,8 @@ export function MessageBubble({
       if (line.match(/^\d+\.\s/)) {
         const num = line.match(/^(\d+)\./)?.[1]
         elements.push(
-          <div key={i} className="flex gap-2 ml-2">
-            <span className="text-[var(--chat-accent)] min-w-[1.5rem]">{num}.</span>
+          <div key={i} className="flex gap-2 my-0.5 ml-1">
+            <span className="text-[var(--chat-accent)] min-w-[1.25rem]">{num}.</span>
             <span>{renderInline(line.replace(/^\d+\.\s/, ''))}</span>
           </div>
         )
@@ -139,7 +139,7 @@ export function MessageBubble({
     // Inline code
     processed = processed.replace(
       /`([^`]+)`/g,
-      '<code class="px-1.5 py-0.5 bg-[var(--chat-surface)] rounded text-sm font-mono">$1</code>'
+      '<code class="px-1.5 py-0.5 bg-[var(--chat-bg)] rounded text-[var(--chat-accent)] text-[13px] font-mono">$1</code>'
     )
     // Links
     processed = processed.replace(
@@ -159,41 +159,49 @@ export function MessageBubble({
   return (
     <div
       className={clsx(
-        'chat-animate-fade-in flex gap-3 p-4',
+        'chat-animate-fade-in flex items-start gap-2 px-3 py-2',
         isUser ? 'flex-row-reverse' : 'flex-row',
         className
       )}
     >
+      {/* Avatar */}
       <div
         className={clsx(
-          'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center',
+          'flex-shrink-0 w-6 h-6 rounded-md flex items-center justify-center',
           isUser
-            ? 'bg-[var(--chat-accent)]'
-            : 'bg-[var(--chat-surface)] border border-[var(--chat-border)]'
+            ? 'bg-[var(--chat-surface)]'
+            : 'bg-[var(--chat-accent)]/20'
         )}
       >
         {isUser ? (
-          userAvatar || <User className="w-4 h-4 text-white" />
+          userAvatar || <User className="w-3 h-3 text-[var(--chat-text-secondary)]" />
         ) : (
-          assistantAvatar || <Bot className="w-4 h-4 text-[var(--chat-text)]" />
+          assistantAvatar || <Bot className="w-3 h-3 text-[var(--chat-accent)]" />
         )}
       </div>
 
+      {/* Message bubble */}
       <div
         className={clsx(
-          'flex-1 max-w-[80%] rounded-2xl px-4 py-3',
-          isUser
-            ? 'bg-[var(--chat-accent)] text-white'
-            : 'bg-[var(--chat-surface)] text-[var(--chat-text)] border border-[var(--chat-border)]'
+          isUser ? 'text-right max-w-[85%] ml-auto' : 'text-left max-w-full'
         )}
       >
-        <div className="text-sm">{renderContent(message.content)}</div>
+        <div
+          className={clsx(
+            'inline-block px-3 py-2 rounded-xl break-words text-sm',
+            isUser
+              ? 'bg-[var(--chat-accent)] text-white rounded-tr-sm'
+              : 'bg-[var(--chat-surface)] text-[var(--chat-text)] rounded-tl-sm'
+          )}
+        >
+          <div className="leading-relaxed">{renderContent(message.content)}</div>
 
-        {message.toolCalls && message.toolCalls.length > 0 && renderToolCalls && (
-          <div className="mt-3 pt-3 border-t border-[var(--chat-border)]">
-            {renderToolCalls(message.toolCalls)}
-          </div>
-        )}
+          {message.toolCalls && message.toolCalls.length > 0 && renderToolCalls && (
+            <div className="mt-2 pt-2 border-t border-white/20">
+              {renderToolCalls(message.toolCalls)}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

@@ -19,6 +19,7 @@ export type {
   DiffViewProps,
   QuestionCardProps,
   ChatContainerProps,
+  EmptyStateLayout,
 } from './components'
 
 // Types
