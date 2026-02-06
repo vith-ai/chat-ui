@@ -1259,14 +1259,46 @@ function ChatDemo() {
         })
       }
 
-      await new Promise(resolve => setTimeout(resolve, 500))
+      await new Promise(resolve => setTimeout(resolve, 300))
 
-      // Update with full response
+      // Stream thinking first (if present)
+      if (response.thinking) {
+        setMessages(prev => {
+          const updated = [...prev]
+          const lastMsg = updated[updated.length - 1]
+          lastMsg.thinking = ''
+          return [...updated]
+        })
+
+        const thinkingWords = response.thinking.split(' ')
+        for (let i = 0; i < thinkingWords.length; i++) {
+          await new Promise(resolve => setTimeout(resolve, 30))
+          setMessages(prev => {
+            const updated = [...prev]
+            const lastMsg = updated[updated.length - 1]
+            lastMsg.thinking = thinkingWords.slice(0, i + 1).join(' ')
+            return [...updated]
+          })
+        }
+        await new Promise(resolve => setTimeout(resolve, 200))
+      }
+
+      // Stream content word by word
+      const words = response.content.split(' ')
+      for (let i = 0; i < words.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, 25))
+        setMessages(prev => {
+          const updated = [...prev]
+          const lastMsg = updated[updated.length - 1]
+          lastMsg.content = words.slice(0, i + 1).join(' ')
+          return [...updated]
+        })
+      }
+
+      // Add remaining properties after streaming
       setMessages(prev => {
         const updated = [...prev]
         const lastMsg = updated[updated.length - 1]
-        lastMsg.content = response.content
-        lastMsg.thinking = response.thinking
         lastMsg.tasks = response.tasks
         lastMsg.artifact = response.artifact
         lastMsg.approval = response.approval
@@ -1274,17 +1306,49 @@ function ChatDemo() {
         return [...updated]
       })
     } else {
-      // Simple response (with possible question)
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Simple response - also stream it
       const assistantMessage: DemoMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: response.content,
-        thinking: response.thinking,
+        content: '',
         artifact: response.artifact,
         question: response.question,
       }
       setMessages(prev => [...prev, assistantMessage])
+
+      // Stream thinking first (if present)
+      if (response.thinking) {
+        setMessages(prev => {
+          const updated = [...prev]
+          const lastMsg = updated[updated.length - 1]
+          lastMsg.thinking = ''
+          return [...updated]
+        })
+
+        const thinkingWords = response.thinking.split(' ')
+        for (let i = 0; i < thinkingWords.length; i++) {
+          await new Promise(resolve => setTimeout(resolve, 30))
+          setMessages(prev => {
+            const updated = [...prev]
+            const lastMsg = updated[updated.length - 1]
+            lastMsg.thinking = thinkingWords.slice(0, i + 1).join(' ')
+            return [...updated]
+          })
+        }
+        await new Promise(resolve => setTimeout(resolve, 200))
+      }
+
+      // Stream content word by word
+      const words = response.content.split(' ')
+      for (let i = 0; i < words.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, 25))
+        setMessages(prev => {
+          const updated = [...prev]
+          const lastMsg = updated[updated.length - 1]
+          lastMsg.content = words.slice(0, i + 1).join(' ')
+          return [...updated]
+        })
+      }
     }
 
     if (response.artifact) {
