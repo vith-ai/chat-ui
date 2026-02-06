@@ -28,6 +28,8 @@ import {
   Minus,
   PanelRight,
   Sparkles,
+  Sun,
+  Moon,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -1535,18 +1537,27 @@ function CodeBlock({ code, language = 'tsx', title }: { code: string; language?:
   )
 }
 
-function HomePage({ onNavigate }: { onNavigate: (page: string) => void }) {
+function HomePage({ onNavigate, theme, onToggleTheme }: { onNavigate: (page: string) => void; theme: 'dark' | 'light'; onToggleTheme: () => void }) {
   return (
-    <div className="h-screen flex flex-col bg-surface">
-      <header className="flex items-center justify-between px-4 py-3 border-b border-surface-border">
+    <div className="h-screen flex flex-col" style={{ background: 'var(--surface)' }}>
+      <header className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--surface-border)' }}>
         <div className="flex items-center gap-3">
-          <span className="font-mono text-sm font-semibold text-accent">@vith-ai/chat-ui</span>
-          <span className="text-xs text-zinc-600 hidden sm:block">Model-agnostic chat components</span>
+          <span className="font-mono text-sm font-semibold" style={{ color: 'var(--accent)' }}>@vith-ai/chat-ui</span>
+          <span className="text-xs hidden sm:block" style={{ color: 'var(--chat-text-secondary)' }}>Model-agnostic chat components</span>
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={onToggleTheme}
+            className="flex items-center justify-center w-9 h-9 rounded-lg transition-colors"
+            style={{ background: 'var(--surface-elevated)', color: 'var(--chat-text-secondary)' }}
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+          <button
             onClick={() => onNavigate('docs')}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm text-zinc-400 hover:text-white transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm transition-colors"
+            style={{ color: 'var(--chat-text-secondary)' }}
           >
             <BookOpen className="w-4 h-4" />
             Docs
@@ -1555,7 +1566,8 @@ function HomePage({ onNavigate }: { onNavigate: (page: string) => void }) {
             href="https://github.com/vith-ai/chat-ui"
             target="_blank"
             rel="noopener"
-            className="flex items-center gap-2 px-3 py-1.5 text-sm text-zinc-400 hover:text-white transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm transition-colors"
+            style={{ color: 'var(--chat-text-secondary)' }}
           >
             <Github className="w-4 h-4" />
             GitHub
@@ -1569,7 +1581,7 @@ function HomePage({ onNavigate }: { onNavigate: (page: string) => void }) {
 
 // ============ DOCS PAGE ============
 
-function DocsPage({ onNavigate }: { onNavigate: (page: string) => void }) {
+function DocsPage({ onNavigate, theme, onToggleTheme }: { onNavigate: (page: string) => void; theme: 'dark' | 'light'; onToggleTheme: () => void }) {
   const [activeSection, setActiveSection] = useState('quickstart')
 
   const sections = [
@@ -1588,26 +1600,38 @@ function DocsPage({ onNavigate }: { onNavigate: (page: string) => void }) {
   ]
 
   return (
-    <div className="min-h-screen bg-surface">
-      <header className="sticky top-0 z-50 flex items-center justify-between px-4 py-3 border-b border-surface-border bg-surface/80 backdrop-blur-xl">
+    <div className="min-h-screen" style={{ background: 'var(--surface)' }}>
+      <header className="sticky top-0 z-50 flex items-center justify-between px-4 py-3 border-b backdrop-blur-xl" style={{ borderColor: 'var(--surface-border)', background: 'color-mix(in srgb, var(--surface) 80%, transparent)' }}>
         <div className="flex items-center gap-4">
           <button
             onClick={() => onNavigate('home')}
-            className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors"
+            className="flex items-center gap-2 text-sm transition-colors"
+            style={{ color: 'var(--chat-text-secondary)' }}
           >
             <ArrowLeft className="w-4 h-4" />
             Demo
           </button>
-          <span className="font-mono text-sm font-semibold text-accent">Documentation</span>
+          <span className="font-mono text-sm font-semibold" style={{ color: 'var(--accent)' }}>Documentation</span>
         </div>
-        <a
-          href="https://github.com/vith-ai/chat-ui"
-          target="_blank"
-          rel="noopener"
-          className="flex items-center gap-2 px-3 py-1.5 text-sm text-zinc-400 hover:text-white transition-colors"
-        >
-          <Github className="w-4 h-4" />
-        </a>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onToggleTheme}
+            className="flex items-center justify-center w-9 h-9 rounded-lg transition-colors"
+            style={{ background: 'var(--surface-elevated)', color: 'var(--chat-text-secondary)' }}
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+          <a
+            href="https://github.com/vith-ai/chat-ui"
+            target="_blank"
+            rel="noopener"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm transition-colors"
+            style={{ color: 'var(--chat-text-secondary)' }}
+          >
+            <Github className="w-4 h-4" />
+          </a>
+        </div>
       </header>
 
       <div className="max-w-6xl mx-auto flex">
@@ -2473,11 +2497,19 @@ interface ChatAdapter {
 
 export default function App() {
   const [page, setPage] = useState('home')
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+
+  // Apply theme class to document
+  useEffect(() => {
+    document.documentElement.classList.toggle('light', theme === 'light')
+  }, [theme])
+
+  const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark')
 
   return (
     <>
-      {page === 'home' && <HomePage onNavigate={setPage} />}
-      {page === 'docs' && <DocsPage onNavigate={setPage} />}
+      {page === 'home' && <HomePage onNavigate={setPage} theme={theme} onToggleTheme={toggleTheme} />}
+      {page === 'docs' && <DocsPage onNavigate={setPage} theme={theme} onToggleTheme={toggleTheme} />}
     </>
   )
 }

@@ -23,6 +23,55 @@
   --chat-error: #ef4444;
 }
 
+/* Light theme */
+.light {
+  --accent: #9333ea;
+  --accent-light: #a855f7;
+  --accent-dark: #7c3aed;
+  --surface: #ffffff;
+  --surface-elevated: #f4f4f5;
+  --surface-border: #e4e4e7;
+
+  --chat-bg: #ffffff;
+  --chat-surface: #f4f4f5;
+  --chat-border: #e4e4e7;
+  --chat-text: #18181b;
+  --chat-text-secondary: #71717a;
+  --chat-accent: #9333ea;
+  --chat-accent-hover: #7c3aed;
+  --chat-success: #16a34a;
+  --chat-warning: #d97706;
+  --chat-error: #dc2626;
+}
+
+.light body,
+.light {
+  background: var(--surface);
+  color: var(--chat-text);
+}
+
+.light .gradient-mesh {
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 40%, rgba(147, 51, 234, 0.08), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 20%, rgba(124, 58, 237, 0.05), transparent),
+    radial-gradient(ellipse 50% 50% at 50% 80%, rgba(192, 132, 252, 0.04), transparent);
+}
+
+.light .grid-pattern {
+  background-image:
+    linear-gradient(rgba(147, 51, 234, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(147, 51, 234, 0.05) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+.light ::-webkit-scrollbar-thumb {
+  background: #d4d4d8;
+}
+
+.light ::-webkit-scrollbar-thumb:hover {
+  background: #a1a1aa;
+}
+
 * {
   box-sizing: border-box;
 }
