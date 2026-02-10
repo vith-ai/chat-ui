@@ -43,54 +43,36 @@ const adapter = createClaudeAdapter({
 })
 
 function App() {
-  const {
-    messages,
-    isProcessing,
-    streamingContent,  // Live text as it streams
-    thinkingText,      // Extended thinking content
-    activeToolCalls,   // Tool calls in progress
-    tasks,
-    sendMessage,
-    stopProcessing
-  } = useChat({ adapter })
+  const chat = useChat({ adapter })
+
+  // Streaming is automatic! During processing, a live assistant message
+  // is injected into messages with content, toolCalls, and thinking
+  // updating in real-time. ChatContainer renders it automatically.
 
   return (
     <ChatContainer
-      messages={messages}
-      isProcessing={isProcessing}
-      thinkingText={thinkingText}
-      tasks={tasks}
-      onSend={sendMessage}
-      onStop={stopProcessing}
+      messages={chat.messages}
+      isProcessing={chat.isProcessing}
+      thinkingText={chat.thinkingText}
+      tasks={chat.tasks}
+      onSend={chat.sendMessage}
+      onStop={chat.stopProcessing}
     />
   )
 }
 ```
 
-### Showing Intermediate Steps
+### How Streaming Works
 
-Display streaming content, thinking, and tool calls as they happen:
+The `useChat` hook automatically handles streaming by injecting a live assistant message into the `messages` array during processing:
 
-```tsx
-const { messages, isProcessing, streamingContent, thinkingText, activeToolCalls } = useChat({ adapter })
+1. On first stream chunk, a new assistant message is added to `messages`
+2. As text streams in, `message.content` updates in real-time
+3. Tool calls are added to `message.toolCalls` as they occur
+4. Thinking content goes to `message.thinking`
+5. When complete, the streaming message is replaced with the final response
 
-return (
-  <>
-    {/* Show streaming response before it's finalized */}
-    {isProcessing && streamingContent && (
-      <MessageBubble role="assistant" content={streamingContent} />
-    )}
-
-    {/* Show extended thinking */}
-    {thinkingText && <ThinkingBox thinking={thinkingText} isStreaming />}
-
-    {/* Show tool calls as they happen */}
-    {activeToolCalls.map(tc => (
-      <ToolCallCard key={tc.id} name={tc.name} status={tc.status} />
-    ))}
-  </>
-)
-```
+You can detect a streaming message via `message.metadata?.isStreaming === true` if needed for custom styling.
 
 ## Model Adapters
 

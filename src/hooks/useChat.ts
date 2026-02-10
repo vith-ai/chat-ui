@@ -16,16 +16,12 @@ export interface UseChatOptions {
 }
 
 export interface UseChatReturn {
-  /** Current messages */
+  /** Current messages (includes streaming message during processing) */
   messages: ChatMessage[]
   /** Whether currently processing */
   isProcessing: boolean
-  /** Current streaming content (before final message) */
-  streamingContent: string
   /** Current thinking text (streaming) */
   thinkingText: string
-  /** Active tool calls during processing */
-  activeToolCalls: ToolCall[]
   /** Current tasks */
   tasks: TaskItem[]
   /** Pending question */
@@ -51,13 +47,12 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [streamingContent, setStreamingContent] = useState('')
   const [thinkingText, setThinkingText] = useState('')
-  const [activeToolCalls, setActiveToolCalls] = useState<ToolCall[]>([])
   const [tasks, setTasks] = useState<TaskItem[]>([])
   const [pendingQuestion, setPendingQuestion] = useState<PendingQuestion | null>(null)
 
   const abortControllerRef = useRef<AbortController | null>(null)
+  const streamingMessageIdRef = useRef<string | null>(null)
 
   const addMessage = useCallback((message: ChatMessage) => {
     setMessages((prev) => [...prev, message])
@@ -67,14 +62,46 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     setMessages([])
     setTasks([])
     setPendingQuestion(null)
-    setStreamingContent('')
     setThinkingText('')
-    setActiveToolCalls([])
+    streamingMessageIdRef.current = null
   }, [])
 
   const stopProcessing = useCallback(() => {
     abortControllerRef.current?.abort()
     setIsProcessing(false)
+    // Remove streaming message if we stop mid-stream
+    if (streamingMessageIdRef.current) {
+      setMessages((prev) => prev.filter((m) => m.id !== streamingMessageIdRef.current))
+      streamingMessageIdRef.current = null
+    }
+  }, [])
+
+  // Helper to update the streaming message in-place
+  const updateStreamingMessage = useCallback(
+    (updater: (msg: ChatMessage) => ChatMessage) => {
+      const streamingId = streamingMessageIdRef.current
+      if (!streamingId) return
+
+      setMessages((prev) =>
+        prev.map((msg) => (msg.id === streamingId ? updater(msg) : msg))
+      )
+    },
+    []
+  )
+
+  // Helper to create or get the streaming message
+  const ensureStreamingMessage = useCallback(() => {
+    if (streamingMessageIdRef.current) return
+
+    const streamingMessage: ChatMessage = {
+      id: generateId(),
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+      metadata: { isStreaming: true },
+    }
+    streamingMessageIdRef.current = streamingMessage.id
+    setMessages((prev) => [...prev, streamingMessage])
   }, [])
 
   const sendMessage = useCallback(
@@ -95,9 +122,8 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       }
 
       setIsProcessing(true)
-      setStreamingContent('')
       setThinkingText('')
-      setActiveToolCalls([])
+      streamingMessageIdRef.current = null
       abortControllerRef.current = new AbortController()
 
       try {
@@ -106,41 +132,72 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         const response = await adapter.sendMessage(allMessages, {
           signal: abortControllerRef.current.signal,
           onStream: (chunk) => {
-            setStreamingContent((prev) => prev + chunk)
+            ensureStreamingMessage()
+            updateStreamingMessage((msg) => ({
+              ...msg,
+              content: msg.content + chunk,
+            }))
           },
           onThinking: (thinking) => {
             setThinkingText(thinking)
+            ensureStreamingMessage()
+            updateStreamingMessage((msg) => ({
+              ...msg,
+              thinking,
+            }))
           },
           onToolCall: (toolCall) => {
-            setActiveToolCalls((prev) => {
-              const existing = prev.findIndex((tc) => tc.id === toolCall.id)
-              if (existing >= 0) {
+            ensureStreamingMessage()
+            updateStreamingMessage((msg) => {
+              const existingCalls = msg.toolCalls || []
+              const existingIndex = existingCalls.findIndex((tc) => tc.id === toolCall.id)
+
+              let updatedCalls: ToolCall[]
+              if (existingIndex >= 0) {
                 // Update existing tool call
-                const updated = [...prev]
-                updated[existing] = toolCall
-                return updated
+                updatedCalls = [...existingCalls]
+                updatedCalls[existingIndex] = toolCall
+              } else {
+                // Add new tool call
+                updatedCalls = [...existingCalls, toolCall]
               }
-              // Add new tool call
-              return [...prev, toolCall]
+
+              return { ...msg, toolCalls: updatedCalls }
             })
           },
         })
 
-        addMessage(response)
+        // Replace streaming message with final response
+        if (streamingMessageIdRef.current) {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === streamingMessageIdRef.current
+                ? { ...response, id: msg.id } // Keep the same ID for React key stability
+                : msg
+            )
+          )
+        } else {
+          // No streaming happened, just add the response
+          addMessage(response)
+        }
+
         onResponse?.(response)
       } catch (error) {
         if ((error as Error).name !== 'AbortError') {
           onError?.(error as Error)
+          // Remove streaming message on error
+          if (streamingMessageIdRef.current) {
+            setMessages((prev) => prev.filter((m) => m.id !== streamingMessageIdRef.current))
+          }
         }
       } finally {
         setIsProcessing(false)
-        setStreamingContent('')
         setThinkingText('')
-        setActiveToolCalls([])
+        streamingMessageIdRef.current = null
         abortControllerRef.current = null
       }
     },
-    [adapter, messages, addMessage, onSend, onResponse, onError]
+    [adapter, messages, addMessage, onSend, onResponse, onError, ensureStreamingMessage, updateStreamingMessage]
   )
 
   const answerQuestion = useCallback(
@@ -175,9 +232,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   return {
     messages,
     isProcessing,
-    streamingContent,
     thinkingText,
-    activeToolCalls,
     tasks,
     pendingQuestion,
     sendMessage,

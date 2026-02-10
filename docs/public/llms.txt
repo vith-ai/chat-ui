@@ -171,7 +171,7 @@ import {
 
 ### useChat
 
-Manages chat state with an adapter:
+Manages chat state with an adapter. Streaming is automatic - a live assistant message is injected into messages during processing.
 
 ```tsx
 import { useChat } from '@vith-ai/chat-ui'
@@ -183,37 +183,25 @@ const chat = useChat({
 })
 
 // Returns:
-chat.messages          // ChatMessage[]
+chat.messages          // ChatMessage[] - includes streaming message during processing
 chat.isProcessing      // boolean
-chat.streamingContent  // string - live text as it streams in
 chat.thinkingText      // string - extended thinking content
-chat.activeToolCalls   // ToolCall[] - tool calls in progress
 chat.tasks             // TaskItem[]
 chat.sendMessage(text) // Send a message
 chat.stopProcessing()  // Abort current request
 chat.clearMessages()   // Clear all messages
 ```
 
-### Showing Streaming Content
+### How Streaming Works
 
-Display intermediate steps during processing:
+The hook automatically injects a live assistant message into `messages` during processing:
+- On first stream chunk, a new message is added with `metadata.isStreaming: true`
+- `message.content` updates in real-time as text streams
+- `message.toolCalls` updates as tool calls occur
+- `message.thinking` updates with extended thinking content
+- When complete, streaming message is replaced with final response
 
-```tsx
-const { messages, isProcessing, streamingContent, thinkingText, activeToolCalls } = useChat({ adapter })
-
-// Show streaming response before it's finalized
-{isProcessing && streamingContent && (
-  <MessageBubble role="assistant" content={streamingContent} />
-)}
-
-// Show extended thinking
-{thinkingText && <ThinkingBox thinking={thinkingText} />}
-
-// Show tool calls as they happen
-{activeToolCalls.map(tc => (
-  <ToolCallCard key={tc.id} name={tc.name} status={tc.status} />
-))}
-```
+ChatContainer renders streaming messages automatically via toolRenderers and MessageBubble.
 
 ### useConversations
 
