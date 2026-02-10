@@ -43,19 +43,53 @@ const adapter = createClaudeAdapter({
 })
 
 function App() {
-  const chat = useChat({ adapter })
+  const {
+    messages,
+    isProcessing,
+    streamingContent,  // Live text as it streams
+    thinkingText,      // Extended thinking content
+    activeToolCalls,   // Tool calls in progress
+    tasks,
+    sendMessage,
+    stopProcessing
+  } = useChat({ adapter })
 
   return (
     <ChatContainer
-      messages={chat.messages}
-      isProcessing={chat.isProcessing}
-      thinkingText={chat.thinkingText}
-      tasks={chat.tasks}
-      onSend={chat.sendMessage}
-      onStop={chat.stopProcessing}
+      messages={messages}
+      isProcessing={isProcessing}
+      thinkingText={thinkingText}
+      tasks={tasks}
+      onSend={sendMessage}
+      onStop={stopProcessing}
     />
   )
 }
+```
+
+### Showing Intermediate Steps
+
+Display streaming content, thinking, and tool calls as they happen:
+
+```tsx
+const { messages, isProcessing, streamingContent, thinkingText, activeToolCalls } = useChat({ adapter })
+
+return (
+  <>
+    {/* Show streaming response before it's finalized */}
+    {isProcessing && streamingContent && (
+      <MessageBubble role="assistant" content={streamingContent} />
+    )}
+
+    {/* Show extended thinking */}
+    {thinkingText && <ThinkingBox thinking={thinkingText} isStreaming />}
+
+    {/* Show tool calls as they happen */}
+    {activeToolCalls.map(tc => (
+      <ToolCallCard key={tc.id} name={tc.name} status={tc.status} />
+    ))}
+  </>
+)
 ```
 
 ## Model Adapters

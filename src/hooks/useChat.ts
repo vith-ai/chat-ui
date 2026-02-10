@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
-import type { ChatMessage, TaskItem, PendingQuestion, ChatAdapter } from '../types'
+import type { ChatMessage, TaskItem, PendingQuestion, ChatAdapter, ToolCall } from '../types'
 import { generateId } from '../utils'
 
 export interface UseChatOptions {
@@ -20,8 +20,12 @@ export interface UseChatReturn {
   messages: ChatMessage[]
   /** Whether currently processing */
   isProcessing: boolean
+  /** Current streaming content (before final message) */
+  streamingContent: string
   /** Current thinking text (streaming) */
   thinkingText: string
+  /** Active tool calls during processing */
+  activeToolCalls: ToolCall[]
   /** Current tasks */
   tasks: TaskItem[]
   /** Pending question */
@@ -47,7 +51,9 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [streamingContent, setStreamingContent] = useState('')
   const [thinkingText, setThinkingText] = useState('')
+  const [activeToolCalls, setActiveToolCalls] = useState<ToolCall[]>([])
   const [tasks, setTasks] = useState<TaskItem[]>([])
   const [pendingQuestion, setPendingQuestion] = useState<PendingQuestion | null>(null)
 
@@ -61,7 +67,9 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     setMessages([])
     setTasks([])
     setPendingQuestion(null)
+    setStreamingContent('')
     setThinkingText('')
+    setActiveToolCalls([])
   }, [])
 
   const stopProcessing = useCallback(() => {
@@ -87,7 +95,9 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       }
 
       setIsProcessing(true)
+      setStreamingContent('')
       setThinkingText('')
+      setActiveToolCalls([])
       abortControllerRef.current = new AbortController()
 
       try {
@@ -95,14 +105,24 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
         const response = await adapter.sendMessage(allMessages, {
           signal: abortControllerRef.current.signal,
-          onStream: (_chunk) => {
-            // Handle streaming content updates if needed
+          onStream: (chunk) => {
+            setStreamingContent((prev) => prev + chunk)
           },
           onThinking: (thinking) => {
             setThinkingText(thinking)
           },
-          onToolCall: (_toolCall) => {
-            // Could emit tool calls here
+          onToolCall: (toolCall) => {
+            setActiveToolCalls((prev) => {
+              const existing = prev.findIndex((tc) => tc.id === toolCall.id)
+              if (existing >= 0) {
+                // Update existing tool call
+                const updated = [...prev]
+                updated[existing] = toolCall
+                return updated
+              }
+              // Add new tool call
+              return [...prev, toolCall]
+            })
           },
         })
 
@@ -114,7 +134,9 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         }
       } finally {
         setIsProcessing(false)
+        setStreamingContent('')
         setThinkingText('')
+        setActiveToolCalls([])
         abortControllerRef.current = null
       }
     },
@@ -153,7 +175,9 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   return {
     messages,
     isProcessing,
+    streamingContent,
     thinkingText,
+    activeToolCalls,
     tasks,
     pendingQuestion,
     sendMessage,

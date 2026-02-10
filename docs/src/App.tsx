@@ -826,7 +826,7 @@ interface Conversation {
 const WELCOME_MESSAGE: DemoMessage = {
   id: '0',
   role: 'assistant',
-  content: "Welcome! This demo showcases all the agentic UI components. Try these:\n\n• **\"analyze\"** → Tool calls, tasks, thinking, charts\n• **\"code\"** → Syntax-highlighted code\n• **\"spreadsheet\"** → Interactive spreadsheet\n• **\"pdf\"** → PDF document viewer\n• **\"search\"** → Web search tools\n• **\"build\"** → Multi-step tasks\n• **\"image\"** → Image artifacts\n• **\"deploy\"** → Approval flow\n• **\"refactor\"** → Diff view\n• **\"configure\"** → Question cards",
+  content: "Welcome! This library is **built for AI agents to implement** — just point your coding assistant to [/llms.txt](/llms.txt) and it can add a chat UI to your app.\n\nTry these demos:\n\n• **\"analyze\"** → Tool calls, tasks, thinking\n• **\"code\"** → Syntax-highlighted code\n• **\"deploy\"** → Approval flow\n• **\"refactor\"** → Diff view\n• **\"configure\"** → Question cards",
 }
 
 function ChatDemo() {
@@ -1571,6 +1571,10 @@ function HomePage({ onNavigate, theme, onToggleTheme }: { onNavigate: (page: str
         <div className="flex items-center gap-3">
           <span className="font-mono text-sm font-semibold" style={{ color: 'var(--accent)' }}>@vith-ai/chat-ui</span>
           <span className="text-xs hidden sm:block" style={{ color: 'var(--chat-text-secondary)' }}>Model-agnostic chat components</span>
+          <span className="hidden md:flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: 'var(--accent)', color: 'white', opacity: 0.9 }}>
+            <Sparkles className="w-3 h-3" />
+            Agent-ready
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -1707,6 +1711,24 @@ function QuickStartSection() {
       <div>
         <h1 className="text-2xl font-bold mb-2">Quick Start</h1>
         <p className="text-[color:var(--chat-text-secondary)]">Get a working chat UI in under 5 minutes.</p>
+      </div>
+
+      <div className="p-4 rounded-xl border" style={{ background: 'color-mix(in srgb, var(--accent) 10%, transparent)', borderColor: 'color-mix(in srgb, var(--accent) 30%, transparent)' }}>
+        <div className="flex items-center gap-2 mb-2">
+          <Sparkles className="w-4 h-4" style={{ color: 'var(--accent)' }} />
+          <span className="font-semibold text-sm">Built for AI agents</span>
+        </div>
+        <p className="text-sm text-[color:var(--chat-text-secondary)] mb-2">
+          Using Claude Code, Cursor, or another AI coding assistant? Point it to our condensed docs:
+        </p>
+        <a
+          href="/llms.txt"
+          target="_blank"
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-mono transition-colors"
+          style={{ background: 'var(--surface-elevated)', color: 'var(--accent)' }}
+        >
+          /llms.txt
+        </a>
       </div>
 
       <div>

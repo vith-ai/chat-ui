@@ -1,0 +1,404 @@
+# @vith-ai/chat-ui
+
+> React components for building agentic chat interfaces. Model-agnostic, works with any LLM.
+
+## Installation
+
+```bash
+npm install @vith-ai/chat-ui
+```
+
+## Quick Start
+
+```tsx
+import { ChatContainer } from '@vith-ai/chat-ui'
+import '@vith-ai/chat-ui/styles.css'
+
+function App() {
+  const [messages, setMessages] = useState([])
+  const [isProcessing, setIsProcessing] = useState(false)
+
+  const handleSend = async (text) => {
+    // Add user message
+    setMessages(prev => [...prev, { id: Date.now(), role: 'user', content: text }])
+    setIsProcessing(true)
+
+    // Call your LLM API here
+    const response = await yourLLMCall(text)
+
+    // Add assistant message
+    setMessages(prev => [...prev, { id: Date.now(), role: 'assistant', content: response }])
+    setIsProcessing(false)
+  }
+
+  return (
+    <ChatContainer
+      messages={messages}
+      isProcessing={isProcessing}
+      onSend={handleSend}
+    />
+  )
+}
+```
+
+## Core Component: ChatContainer
+
+Main chat interface component. All props optional except `messages`.
+
+```tsx
+<ChatContainer
+  // Required
+  messages={ChatMessage[]}           // Array of messages to display
+
+  // Processing state
+  isProcessing={boolean}             // Show loading indicator
+  thinkingText={string}              // Extended thinking content (streaming)
+  tasks={TaskItem[]}                 // Task list to display
+  pendingQuestion={PendingQuestion}  // Question requiring user input
+
+  // Callbacks
+  onSend={(message: string) => void}           // User sends message
+  onStop={() => void}                          // User stops processing
+  onAnswerQuestion={(answer: string) => void}  // User answers question
+
+  // Customization
+  placeholder="Type a message..."    // Input placeholder
+  welcomeMessage={ReactNode}         // Shown when no messages
+  assistantAvatar={ReactNode}        // Custom assistant avatar
+  userAvatar={ReactNode}             // Custom user avatar
+  theme={ChatTheme}                  // Custom colors
+  centered={boolean}                 // Center content with max-width
+
+  // Empty state layout
+  emptyStateLayout="default" | "top-input"  // Input position when empty
+  emptyStatePlaceholder={string}            // Placeholder for empty state
+  showInputHint={boolean}                   // Show "Enter to send" hint
+
+  // Tool rendering
+  toolRenderers={{                   // Custom tool call renderers
+    [toolName]: (toolCall) => ReactNode
+  }}
+/>
+```
+
+## Types
+
+### ChatMessage
+
+```tsx
+interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  toolCalls?: ToolCall[]    // Tool calls in this message
+  thinking?: string         // Extended thinking content
+  timestamp?: Date
+}
+```
+
+### ToolCall
+
+```tsx
+interface ToolCall {
+  id: string
+  name: string
+  input: Record<string, unknown>
+  output?: unknown
+  status: 'pending' | 'running' | 'complete' | 'error'
+  error?: string
+  duration?: number
+}
+```
+
+### TaskItem
+
+```tsx
+interface TaskItem {
+  id: string
+  label: string
+  status: 'pending' | 'in_progress' | 'completed'
+  description?: string
+  activeForm?: string  // Text shown while in progress
+}
+```
+
+### PendingQuestion
+
+```tsx
+interface PendingQuestion {
+  id: string
+  question: string
+  options: { label: string; description?: string; value?: string }[]
+  header?: string
+  multiSelect?: boolean
+}
+```
+
+### ChatTheme
+
+```tsx
+interface ChatTheme {
+  bg?: string           // Background color
+  surface?: string      // Card/surface color
+  border?: string       // Border color
+  text?: string         // Primary text
+  textSecondary?: string
+  accent?: string       // Primary accent (buttons)
+  accentHover?: string
+  success?: string
+  warning?: string
+  error?: string
+}
+```
+
+## Individual Components
+
+Use these for custom layouts:
+
+```tsx
+import {
+  MessageBubble,    // Single message
+  ThinkingBox,      // Extended thinking display
+  ToolCallCard,     // Tool call display
+  TodoBox,          // Task list
+  QuestionCard,     // Multi-choice question
+  ApprovalCard,     // Approval request
+  DiffView,         // Code diff display
+} from '@vith-ai/chat-ui'
+```
+
+## Hooks
+
+### useChat
+
+Manages chat state with an adapter:
+
+```tsx
+import { useChat } from '@vith-ai/chat-ui'
+
+const chat = useChat({
+  adapter: yourAdapter,  // ChatAdapter implementation
+  initialMessages: [],
+  onError: (error) => console.error(error),
+})
+
+// Returns:
+chat.messages          // ChatMessage[]
+chat.isProcessing      // boolean
+chat.streamingContent  // string - live text as it streams in
+chat.thinkingText      // string - extended thinking content
+chat.activeToolCalls   // ToolCall[] - tool calls in progress
+chat.tasks             // TaskItem[]
+chat.sendMessage(text) // Send a message
+chat.stopProcessing()  // Abort current request
+chat.clearMessages()   // Clear all messages
+```
+
+### Showing Streaming Content
+
+Display intermediate steps during processing:
+
+```tsx
+const { messages, isProcessing, streamingContent, thinkingText, activeToolCalls } = useChat({ adapter })
+
+// Show streaming response before it's finalized
+{isProcessing && streamingContent && (
+  <MessageBubble role="assistant" content={streamingContent} />
+)}
+
+// Show extended thinking
+{thinkingText && <ThinkingBox thinking={thinkingText} />}
+
+// Show tool calls as they happen
+{activeToolCalls.map(tc => (
+  <ToolCallCard key={tc.id} name={tc.name} status={tc.status} />
+))}
+```
+
+### useConversations
+
+Manage multiple conversations with persistence:
+
+```tsx
+import { useConversations, createLocalStorageStore } from '@vith-ai/chat-ui'
+
+const conversations = useConversations({
+  store: createLocalStorageStore('my-app'),
+})
+
+// Returns:
+conversations.list           // Conversation[]
+conversations.current        // Conversation | null
+conversations.create()       // Create new conversation
+conversations.select(id)     // Switch to conversation
+conversations.delete(id)     // Delete conversation
+conversations.updateTitle(id, title)
+```
+
+## Styling
+
+Import the base styles:
+
+```tsx
+import '@vith-ai/chat-ui/styles.css'
+```
+
+Override with CSS variables:
+
+```css
+:root {
+  --chat-bg: #ffffff;
+  --chat-surface: #f9fafb;
+  --chat-border: #e5e7eb;
+  --chat-text: #111827;
+  --chat-text-secondary: #6b7280;
+  --chat-accent: #8b5cf6;
+  --chat-accent-hover: #7c3aed;
+  --chat-success: #10b981;
+  --chat-warning: #f59e0b;
+  --chat-error: #ef4444;
+}
+```
+
+Or pass a theme prop:
+
+```tsx
+<ChatContainer
+  theme={{
+    bg: '#0f0f0f',
+    surface: '#1a1a1a',
+    accent: '#8b5cf6',
+  }}
+/>
+```
+
+## Common Patterns
+
+### With Anthropic Claude
+
+```tsx
+import Anthropic from '@anthropic-ai/sdk'
+
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+
+const handleSend = async (text) => {
+  setMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'user', content: text }])
+  setIsProcessing(true)
+
+  const response = await client.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 1024,
+    messages: [...messages, { role: 'user', content: text }],
+  })
+
+  setMessages(prev => [...prev, {
+    id: crypto.randomUUID(),
+    role: 'assistant',
+    content: response.content[0].text,
+  }])
+  setIsProcessing(false)
+}
+```
+
+### With OpenAI
+
+```tsx
+import OpenAI from 'openai'
+
+const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+
+const handleSend = async (text) => {
+  setMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'user', content: text }])
+  setIsProcessing(true)
+
+  const response = await client.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [...messages, { role: 'user', content: text }],
+  })
+
+  setMessages(prev => [...prev, {
+    id: crypto.randomUUID(),
+    role: 'assistant',
+    content: response.choices[0].message.content,
+  }])
+  setIsProcessing(false)
+}
+```
+
+### With Tool Calls
+
+```tsx
+const [messages, setMessages] = useState([])
+
+// When assistant makes a tool call, add it to the message
+const handleToolCall = (toolCall) => {
+  setMessages(prev => {
+    const lastMsg = prev[prev.length - 1]
+    return [
+      ...prev.slice(0, -1),
+      { ...lastMsg, toolCalls: [...(lastMsg.toolCalls || []), toolCall] }
+    ]
+  })
+}
+
+// Custom renderer for a specific tool
+<ChatContainer
+  messages={messages}
+  toolRenderers={{
+    'search': (tc) => <SearchResults results={tc.output} />,
+    'code_execute': (tc) => <CodeOutput code={tc.input.code} result={tc.output} />,
+  }}
+/>
+```
+
+### With Extended Thinking
+
+```tsx
+const [thinkingText, setThinkingText] = useState('')
+
+// Stream thinking content
+const handleThinking = (text) => {
+  setThinkingText(text)
+}
+
+// When response complete, add thinking to message
+const handleComplete = (response) => {
+  setMessages(prev => [...prev, {
+    id: crypto.randomUUID(),
+    role: 'assistant',
+    content: response.content,
+    thinking: thinkingText,  // Stored in message
+  }])
+  setThinkingText('')
+}
+
+<ChatContainer
+  messages={messages}
+  thinkingText={thinkingText}  // Shows while streaming
+/>
+```
+
+### ChatGPT-style Empty State
+
+```tsx
+<ChatContainer
+  messages={messages}
+  emptyStateLayout="top-input"
+  emptyStatePlaceholder="What would you like to explore?"
+  welcomeMessage={
+    <div className="text-center">
+      <h2>Welcome!</h2>
+      <div className="grid grid-cols-2 gap-2 mt-4">
+        <SuggestionCard onClick={() => onSend("Help me write code")} />
+        <SuggestionCard onClick={() => onSend("Explain a concept")} />
+      </div>
+    </div>
+  }
+/>
+```
+
+## Links
+
+- npm: https://www.npmjs.com/package/@vith-ai/chat-ui
+- Demo: https://chat.vith.ai
+- GitHub: https://github.com/vith-ai/chat-ui
