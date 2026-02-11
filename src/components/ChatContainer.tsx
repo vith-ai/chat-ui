@@ -86,8 +86,9 @@ export interface ChatContainerProps {
   /** Called when a message with an artifact is received */
   onArtifact?: (artifact: Artifact) => void
   /**
-   * Show artifacts inline after messages (default: true)
-   * When true, artifacts are displayed using ArtifactPanel after the message that contains them
+   * Show artifacts inline after messages (default: false)
+   * When true, artifacts are displayed using ArtifactPanel after the message that contains them.
+   * Most apps will have a dedicated artifact panel, so this defaults to false.
    */
   showArtifacts?: boolean
   /** Custom artifact renderers by type (passed to ArtifactPanel) */
@@ -121,7 +122,7 @@ export function ChatContainer({
   renderMessageExtras,
   suggestions,
   onArtifact,
-  showArtifacts = true,
+  showArtifacts = false,
   artifactRenderers,
 }: ChatContainerProps) {
   const [input, setInput] = useState('')
