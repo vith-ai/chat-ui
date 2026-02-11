@@ -39,6 +39,8 @@ export interface ChatMessage {
   content: string
   /** Tool calls made in this message (assistant only) */
   toolCalls?: ToolCall[]
+  /** Artifacts generated in this message (code, files, images, etc.) */
+  artifacts?: Artifact[]
   /** Extended thinking/reasoning content */
   thinking?: string
   /** Timestamp of the message */

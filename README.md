@@ -305,6 +305,7 @@ import {
   ApprovalCard,     // Permission request UI
   DiffView,         // Code diff visualization
   QuestionCard,     // Multiple choice questions
+  ArtifactPanel,    // Display artifacts (code, files, images) - works out of the box
   ChatContainer,    // Full chat UI (also exported at top level)
 } from '@vith-ai/chat-ui'
 ```

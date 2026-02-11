@@ -91,8 +91,21 @@ interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
   content: string
   toolCalls?: ToolCall[]    // Tool calls in this message
+  artifacts?: Artifact[]    // Generated artifacts (code, files, images)
   thinking?: string         // Extended thinking content
   timestamp?: Date
+}
+```
+
+### Artifact
+
+```tsx
+interface Artifact {
+  id: string
+  type: 'code' | 'markdown' | 'image' | 'html' | 'csv' | 'json' | 'pdf' | 'spreadsheet' | 'custom'
+  title: string
+  content: string           // Raw content or URL for images
+  language?: string         // For code artifacts
 }
 ```
 
@@ -164,7 +177,92 @@ import {
   QuestionCard,     // Multi-choice question
   ApprovalCard,     // Approval request
   DiffView,         // Code diff display
+  ArtifactPanel,    // Display artifacts (code, files, images)
 } from '@vith-ai/chat-ui'
+```
+
+## ArtifactPanel
+
+Display artifacts with built-in renderers. Works out of the box, no configuration needed.
+
+### Basic Usage (Zero Config)
+
+```tsx
+import { ArtifactPanel } from '@vith-ai/chat-ui'
+
+// Just pass artifacts - built-in renderers handle the rest
+<ArtifactPanel artifacts={message.artifacts} />
+```
+
+### Built-in Renderers (No Dependencies)
+
+| Type | Renderer |
+|------|----------|
+| `code` | `<pre><code>` with styling |
+| `json` | Pretty-printed JSON |
+| `csv` | HTML table |
+| `markdown` | Plain text (override for rich) |
+| `image` | Native `<img>` |
+| `html` | Sandboxed iframe |
+
+### Custom Renderers (Optional)
+
+Override built-in renderers with your own:
+
+```tsx
+// Install optional deps: npm install shiki react-markdown
+<ArtifactPanel
+  artifacts={artifacts}
+  renderers={{
+    code: (artifact) => <SyntaxHighlighter lang={artifact.language}>{artifact.content}</SyntaxHighlighter>,
+    markdown: (artifact) => <ReactMarkdown>{artifact.content}</ReactMarkdown>,
+  }}
+/>
+```
+
+### Full Props
+
+```tsx
+<ArtifactPanel
+  artifacts={Artifact[]}              // Required: artifacts to display
+  renderers={Record<type, renderer>}  // Optional: custom renderers by type
+  selectedIndex={number}              // Optional: controlled selection
+  onSelect={(index) => void}          // Optional: selection callback
+  onClose={() => void}                // Optional: close callback
+  showClose={boolean}                 // Optional: show close button
+/>
+```
+
+### Side-by-Side Layout Example
+
+```tsx
+function ChatWithArtifacts() {
+  const chat = useChat({ adapter })
+  const [selectedArtifact, setSelectedArtifact] = useState(null)
+
+  // Find artifacts from the last assistant message
+  const lastMessage = chat.messages.filter(m => m.role === 'assistant').pop()
+  const artifacts = lastMessage?.artifacts || []
+
+  return (
+    <div style={{ display: 'flex', height: '100vh' }}>
+      <div style={{ flex: 1 }}>
+        <ChatContainer
+          messages={chat.messages}
+          onSend={chat.sendMessage}
+        />
+      </div>
+      {artifacts.length > 0 && (
+        <div style={{ width: 400, borderLeft: '1px solid var(--chat-border)' }}>
+          <ArtifactPanel
+            artifacts={artifacts}
+            onClose={() => setSelectedArtifact(null)}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
 ```
 
 ## Hooks
