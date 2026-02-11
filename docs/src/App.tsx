@@ -36,9 +36,11 @@ import {
   ApprovalCard,
   DiffView,
   QuestionCard,
+  useChat,
 } from '@vith-ai/chat-ui'
 import type {
   ChatMessage,
+  ChatAdapter,
   ToolCall,
   TaskItem,
   ApprovalRequest,
@@ -370,6 +372,96 @@ Built-in support for:
     content: "This demo showcases all the agentic UI components. Available commands:\n\n• **\"analyze data\"** → Tool calls, tasks, thinking, charts\n• **\"write code\"** → Syntax-highlighted code artifact\n• **\"spreadsheet\"** → Interactive spreadsheet viewer\n• **\"pdf\"** or **\"report\"** → PDF document viewer\n• **\"search\"** → Web search with multiple tools\n• **\"build\"** → Multi-step task progress\n• **\"image\"** → Image generation artifact\n• **\"deploy\"** → Approval flow\n• **\"refactor\"** → Diff view\n• **\"configure\"** → Question cards\n\nEach response demonstrates different agentic UI patterns. Check out the **Docs** to learn how to integrate these into your app.",
   },
 }
+
+// Helper for delays
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+// Mock adapter that simulates LLM streaming - dogfoods the useChat hook
+function createMockAdapter(): ChatAdapter {
+  return {
+    providerName: 'Demo',
+    features: { streaming: true, thinking: true, toolUse: true },
+    async sendMessage(messages, options) {
+      const lastMessage = messages[messages.length - 1]
+      const userInput = lastMessage?.content.toLowerCase() || ''
+
+      // Determine response based on input
+      let responseKey = 'default'
+      if (userInput.includes('analyz') || userInput.includes('visual') || userInput.includes('chart')) {
+        responseKey = 'analyze'
+      } else if (userInput.includes('code') || userInput.includes('component') || userInput.includes('button') || userInput.includes('function') || userInput.includes('write')) {
+        responseKey = 'code'
+      } else if (userInput.includes('spreadsheet') || userInput.includes('excel') || userInput.includes('financial') || userInput.includes('model')) {
+        responseKey = 'spreadsheet'
+      } else if (userInput.includes('search') || userInput.includes('find') || userInput.includes('look up') || userInput.includes('research')) {
+        responseKey = 'search'
+      } else if (userInput.includes('build') || userInput.includes('compile') || userInput.includes('test')) {
+        responseKey = 'build'
+      } else if (userInput.includes('image') || userInput.includes('picture') || userInput.includes('photo') || userInput.includes('generate')) {
+        responseKey = 'image'
+      } else if (userInput.includes('pdf') || userInput.includes('report') || userInput.includes('document')) {
+        responseKey = 'pdf'
+      } else if (userInput.includes('deploy') || userInput.includes('production') || userInput.includes('release')) {
+        responseKey = 'deploy'
+      } else if (userInput.includes('refactor') || userInput.includes('diff') || userInput.includes('change')) {
+        responseKey = 'refactor'
+      } else if (userInput.includes('config') || userInput.includes('question') || userInput.includes('setup') || userInput.includes('database')) {
+        responseKey = 'question'
+      } else if (userInput.includes('help') || userInput.includes('what can') || userInput.includes('demo')) {
+        responseKey = 'help'
+      }
+
+      const response = demoResponses[responseKey]
+
+      // Simulate tool calls
+      if (response.toolCalls) {
+        for (let i = 0; i < response.toolCalls.length; i++) {
+          const tc = response.toolCalls[i]
+          options?.onToolCall?.({ ...tc, status: 'running' })
+          await delay(600)
+          options?.onToolCall?.({ ...tc, status: 'complete' })
+          await delay(200)
+        }
+      }
+
+      // Simulate thinking
+      if (response.thinking) {
+        const words = response.thinking.split(' ')
+        let accumulated = ''
+        for (const word of words) {
+          accumulated += (accumulated ? ' ' : '') + word
+          options?.onThinking?.(accumulated)
+          await delay(30)
+        }
+        await delay(200)
+      }
+
+      // Simulate content streaming
+      const words = response.content.split(' ')
+      for (const word of words) {
+        options?.onStream?.(word + ' ')
+        await delay(25)
+      }
+
+      // Return final response with all demo fields
+      return {
+        id: Date.now().toString(),
+        role: 'assistant' as const,
+        content: response.content,
+        thinking: response.thinking,
+        toolCalls: response.toolCalls,
+        // Demo-specific fields stored on message
+        tasks: response.tasks,
+        artifact: response.artifact,
+        approval: response.approval,
+        question: response.question,
+        diff: response.diff,
+      } as DemoMessage
+    },
+  }
+}
+
+const mockAdapter = createMockAdapter()
 
 // Artifact renderers (demo-specific - library provides ArtifactRegistry for type detection)
 // Rich Spreadsheet Viewer
@@ -840,11 +932,25 @@ function ChatDemo() {
   })
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
-  const [messages, setMessages] = useState<DemoMessage[]>([])
   const [input, setInput] = useState('')
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [streamingThinking, setStreamingThinking] = useState('')
   const [currentArtifact, setCurrentArtifact] = useState<Artifact | null>(null)
+
+  // Dogfood the useChat hook with mock adapter
+  const {
+    messages: chatMessages,
+    isProcessing,
+    thinkingText: streamingThinking,
+    sendMessage: sendChatMessage,
+    setMessages: setChatMessages,
+    stopProcessing,
+  } = useChat({
+    adapter: mockAdapter,
+    initialMessages: [],
+  })
+
+  // Cast messages to DemoMessage for demo-specific fields
+  const messages = chatMessages as DemoMessage[]
+  const setMessages = setChatMessages as React.Dispatch<React.SetStateAction<DemoMessage[]>>
   const [showArtifactPanel, setShowArtifactPanel] = useState(true)
   const [showConversationList, setShowConversationList] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -989,170 +1095,18 @@ function ChatDemo() {
       ))
     }
 
-    const userMessage: DemoMessage = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: input,
-    }
-
-    setMessages(prev => [...prev, userMessage])
-    const userInput = input.toLowerCase()
+    const userInput = input
     setInput('')
-    setIsProcessing(true)
-    setStreamingThinking('') // Reset streaming thinking state
 
-    // Determine response based on input
-    let responseKey = 'default'
-    if (userInput.includes('analyz') || userInput.includes('visual') || userInput.includes('chart')) {
-      responseKey = 'analyze'
-    } else if (userInput.includes('code') || userInput.includes('component') || userInput.includes('button') || userInput.includes('function') || userInput.includes('write')) {
-      responseKey = 'code'
-    } else if (userInput.includes('spreadsheet') || userInput.includes('excel') || userInput.includes('financial') || userInput.includes('model')) {
-      responseKey = 'spreadsheet'
-    } else if (userInput.includes('search') || userInput.includes('find') || userInput.includes('look up') || userInput.includes('research')) {
-      responseKey = 'search'
-    } else if (userInput.includes('build') || userInput.includes('compile') || userInput.includes('test')) {
-      responseKey = 'build'
-    } else if (userInput.includes('image') || userInput.includes('picture') || userInput.includes('photo') || userInput.includes('generate')) {
-      responseKey = 'image'
-    } else if (userInput.includes('pdf') || userInput.includes('report') || userInput.includes('document')) {
-      responseKey = 'pdf'
-    } else if (userInput.includes('deploy') || userInput.includes('production') || userInput.includes('release')) {
-      responseKey = 'deploy'
-    } else if (userInput.includes('refactor') || userInput.includes('diff') || userInput.includes('change')) {
-      responseKey = 'refactor'
-    } else if (userInput.includes('config') || userInput.includes('question') || userInput.includes('setup') || userInput.includes('database')) {
-      responseKey = 'question'
-    } else if (userInput.includes('help') || userInput.includes('what can') || userInput.includes('demo')) {
-      responseKey = 'help'
+    // Use the mock adapter via useChat - this dogfoods the library
+    await sendChatMessage(userInput)
+
+    // Show artifact panel if response has one
+    const lastMsg = messages[messages.length - 1] as DemoMessage
+    if (lastMsg?.artifact) {
+      setCurrentArtifact(lastMsg.artifact)
+      setShowArtifactPanel(true)
     }
-
-    const response = demoResponses[responseKey]
-
-    // Simulate processing with tool calls
-    if (response.toolCalls) {
-      // Show running tools
-      const runningMessage: DemoMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: '',
-        toolCalls: response.toolCalls.map((t, i) => ({
-          ...t,
-          status: i === 0 ? 'running' : 'pending',
-        })),
-      }
-      setMessages(prev => [...prev, runningMessage])
-
-      // Simulate tool completion
-      for (let i = 0; i < response.toolCalls.length; i++) {
-        await new Promise(resolve => setTimeout(resolve, 800))
-        setMessages(prev => {
-          const updated = [...prev]
-          const lastMsg = updated[updated.length - 1]
-          if (lastMsg.toolCalls) {
-            lastMsg.toolCalls = lastMsg.toolCalls.map((t, j) => ({
-              ...t,
-              status: j <= i ? 'complete' : j === i + 1 ? 'running' : 'pending',
-            }))
-          }
-          return updated
-        })
-      }
-
-      await new Promise(resolve => setTimeout(resolve, 300))
-
-      // Stream thinking first (if present)
-      if (response.thinking) {
-        setMessages(prev => {
-          const updated = [...prev]
-          const lastMsg = updated[updated.length - 1]
-          lastMsg.thinking = ''
-          return [...updated]
-        })
-
-        const thinkingWords = response.thinking.split(' ')
-        for (let i = 0; i < thinkingWords.length; i++) {
-          await new Promise(resolve => setTimeout(resolve, 30))
-          setMessages(prev => {
-            const updated = [...prev]
-            const lastMsg = updated[updated.length - 1]
-            lastMsg.thinking = thinkingWords.slice(0, i + 1).join(' ')
-            return [...updated]
-          })
-        }
-        await new Promise(resolve => setTimeout(resolve, 200))
-      }
-
-      // Stream content word by word
-      const words = response.content.split(' ')
-      for (let i = 0; i < words.length; i++) {
-        await new Promise(resolve => setTimeout(resolve, 25))
-        setMessages(prev => {
-          const updated = [...prev]
-          const lastMsg = updated[updated.length - 1]
-          lastMsg.content = words.slice(0, i + 1).join(' ')
-          return [...updated]
-        })
-      }
-
-      // Add remaining properties after streaming
-      setMessages(prev => {
-        const updated = [...prev]
-        const lastMsg = updated[updated.length - 1]
-        lastMsg.tasks = response.tasks
-        lastMsg.artifact = response.artifact
-        lastMsg.approval = response.approval
-        lastMsg.diff = response.diff
-        return [...updated]
-      })
-    } else {
-      // Simple response - model real library behavior:
-      // 1. Stream thinking FIRST (shown separately, not in a message)
-      // 2. Then create the assistant message with thinking already complete
-      // 3. Then stream the content
-
-      // Stream thinking separately (like library's thinkingText state)
-      if (response.thinking) {
-        const thinkingWords = response.thinking.split(' ')
-        for (let i = 0; i < thinkingWords.length; i++) {
-          await new Promise(resolve => setTimeout(resolve, 30))
-          setStreamingThinking(thinkingWords.slice(0, i + 1).join(' '))
-        }
-        await new Promise(resolve => setTimeout(resolve, 200))
-      }
-
-      // Now create the assistant message with thinking already populated
-      const assistantMessage: DemoMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: '',
-        thinking: response.thinking, // Thinking is complete, attached to message
-        artifact: response.artifact,
-        question: response.question,
-      }
-      setMessages(prev => [...prev, assistantMessage])
-      setStreamingThinking('') // Clear streaming state
-
-      // Stream content word by word
-      const words = response.content.split(' ')
-      for (let i = 0; i < words.length; i++) {
-        await new Promise(resolve => setTimeout(resolve, 25))
-        setMessages(prev => {
-          const updated = [...prev]
-          const lastMsg = updated[updated.length - 1]
-          lastMsg.content = words.slice(0, i + 1).join(' ')
-          return [...updated]
-        })
-      }
-    }
-
-    if (response.artifact) {
-      setCurrentArtifact(response.artifact)
-      setShowArtifactPanel(true) // Auto-show panel when artifact is generated
-    }
-
-    setIsProcessing(false)
-    setStreamingThinking('') // Ensure streaming state is cleared
   }
 
   return (
@@ -1286,10 +1240,7 @@ function ChatDemo() {
                       </button>
                       {isProcessing ? (
                         <button
-                          onClick={() => {
-                            setIsProcessing(false)
-                            setStreamingThinking('')
-                          }}
+                          onClick={stopProcessing}
                           className="px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors flex items-center gap-1.5 text-xs font-medium"
                         >
                           <Square className="w-3 h-3" />
@@ -1455,10 +1406,7 @@ function ChatDemo() {
               />
               {isProcessing ? (
                 <button
-                  onClick={() => {
-                    setIsProcessing(false)
-                    setStreamingThinking('')
-                  }}
+                  onClick={stopProcessing}
                   className="p-3 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors"
                 >
                   <Square className="w-5 h-5" />
