@@ -446,6 +446,58 @@ import {
 />
 ```
 
+### Layout Patterns
+
+The library provides components but doesn't impose layout opinions. Here's the common Claude/ChatGPT-style side panel layout:
+
+```tsx
+import { useState, useEffect, useRef } from 'react'
+import { ChatContainer, ArtifactPanel, useChat } from '@vith-ai/chat-ui'
+
+function App() {
+  const { messages, sendMessage, ...chat } = useChat({ adapter })
+  const [currentArtifact, setCurrentArtifact] = useState(null)
+  const lastArtifactIdRef = useRef(null)
+
+  // Auto-show artifact panel when new artifacts arrive
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1]
+    if (lastMessage?.artifacts?.length) {
+      const latest = lastMessage.artifacts[lastMessage.artifacts.length - 1]
+      if (latest.id !== lastArtifactIdRef.current) {
+        lastArtifactIdRef.current = latest.id
+        setCurrentArtifact(latest)
+      }
+    }
+  }, [messages])
+
+  return (
+    <div className="flex h-screen">
+      {/* Chat takes remaining space */}
+      <div className="flex-1 min-w-0">
+        <ChatContainer
+          messages={messages}
+          onSend={sendMessage}
+          {...chat}
+        />
+      </div>
+
+      {/* Side panel for artifacts */}
+      {currentArtifact && (
+        <aside className="w-[500px] border-l border-gray-200 dark:border-gray-800">
+          <ArtifactPanel
+            artifacts={[currentArtifact]}
+            onClose={() => setCurrentArtifact(null)}
+          />
+        </aside>
+      )}
+    </div>
+  )
+}
+```
+
+For resizable panels, wrap with a library like [allotment](https://github.com/johnwalley/allotment) or [react-resizable-panels](https://github.com/bvaughn/react-resizable-panels).
+
 ## Conversation Management
 
 Manage multiple conversations with built-in persistence. The easiest approach is to use the integrated `conversationStore` option in `useChat`:
