@@ -168,10 +168,13 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         })
 
         // Replace streaming message with final response
-        if (streamingMessageIdRef.current) {
+        // Capture ref value before state update - React processes updates async
+        // and the ref would be null by the time the updater runs
+        const streamingId = streamingMessageIdRef.current
+        if (streamingId) {
           setMessages((prev) =>
             prev.map((msg) =>
-              msg.id === streamingMessageIdRef.current
+              msg.id === streamingId
                 ? { ...response, id: msg.id } // Keep the same ID for React key stability
                 : msg
             )
@@ -186,8 +189,10 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         if ((error as Error).name !== 'AbortError') {
           onError?.(error as Error)
           // Remove streaming message on error
-          if (streamingMessageIdRef.current) {
-            setMessages((prev) => prev.filter((m) => m.id !== streamingMessageIdRef.current))
+          // Capture ref value before state update
+          const streamingId = streamingMessageIdRef.current
+          if (streamingId) {
+            setMessages((prev) => prev.filter((m) => m.id !== streamingId))
           }
         }
       } finally {
