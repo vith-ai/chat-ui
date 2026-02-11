@@ -1,4 +1,4 @@
-import { Send, Square, Loader2 } from 'lucide-react'
+import { Send, Square, Loader2, AlertCircle, X, RotateCcw } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useState, useRef, useEffect } from 'react'
 import type {
@@ -41,6 +41,12 @@ export interface ChatContainerProps {
   diffs?: FileChange[]
   /** Adapter feature flags - controls UI based on adapter capabilities */
   adapterFeatures?: { streaming: boolean; thinking: boolean; toolUse: boolean } | null
+  /** Current error (displayed with retry option) */
+  error?: Error | null
+  /** Called when user clicks retry after an error */
+  onRetry?: () => void
+  /** Called when user dismisses the error */
+  onClearError?: () => void
   /** Called when user sends a message */
   onSend?: (message: string) => void
   /** Called when user stops processing */
@@ -83,8 +89,6 @@ export interface ChatContainerProps {
   renderMessageExtras?: (message: ChatMessage, isStreaming: boolean) => React.ReactNode
   /** Suggestion buttons shown in empty state - clicking sends the message */
   suggestions?: string[]
-  /** Called when a message with an artifact is received */
-  onArtifact?: (artifact: Artifact) => void
   /**
    * Show artifacts inline after messages (default: false)
    * When true, artifacts are displayed using ArtifactPanel after the message that contains them.
@@ -104,6 +108,9 @@ export function ChatContainer({
   pendingApproval,
   diffs,
   adapterFeatures,
+  error,
+  onRetry,
+  onClearError,
   onSend,
   onStop,
   onAnswerQuestion,
@@ -121,7 +128,6 @@ export function ChatContainer({
   showInputHint,
   renderMessageExtras,
   suggestions,
-  onArtifact,
   showArtifacts = false,
   artifactRenderers,
 }: ChatContainerProps) {
@@ -143,7 +149,7 @@ export function ChatContainer({
 
   useEffect(() => {
     scrollToBottom()
-  }, [messages, thinkingText, pendingQuestion, pendingApproval, diffs])
+  }, [messages, thinkingText, pendingQuestion, pendingApproval, diffs, error])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -170,22 +176,6 @@ export function ChatContainer({
       inputRef.current.style.height = Math.max(minHeight, Math.min(inputRef.current.scrollHeight, maxHeight)) + 'px'
     }
   }, [input, messages.length, emptyStateLayout])
-
-  // Track last seen artifact to avoid duplicate callbacks
-  const lastArtifactIdRef = useRef<string | null>(null)
-
-  // Detect new artifacts and call onArtifact
-  useEffect(() => {
-    if (!onArtifact) return
-    const lastMessage = messages[messages.length - 1]
-    if (lastMessage?.artifacts?.length) {
-      const latestArtifact = lastMessage.artifacts[lastMessage.artifacts.length - 1]
-      if (latestArtifact.id !== lastArtifactIdRef.current) {
-        lastArtifactIdRef.current = latestArtifact.id
-        onArtifact(latestArtifact)
-      }
-    }
-  }, [messages, onArtifact])
 
   // Apply theme as CSS variables
   const themeStyle = theme
@@ -520,6 +510,43 @@ export function ChatContainer({
                 {diffs.map((diff) => (
                   <DiffView key={diff.path} change={diff} showActions={false} />
                 ))}
+              </div>
+            )}
+
+            {/* Error display */}
+            {error && (
+              <div className="px-4 py-2">
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-[var(--chat-error)]/10 border border-[var(--chat-error)]/20">
+                  <AlertCircle className="w-5 h-5 text-[var(--chat-error)] flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-[var(--chat-error)]">
+                      Something went wrong
+                    </p>
+                    <p className="text-xs text-[var(--chat-text-secondary)] mt-1 break-words">
+                      {error.message}
+                    </p>
+                    <div className="flex gap-2 mt-2">
+                      {onRetry && (
+                        <button
+                          onClick={onRetry}
+                          className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded bg-[var(--chat-error)] text-white hover:bg-[var(--chat-error)]/80 transition-colors"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          Retry
+                        </button>
+                      )}
+                      {onClearError && (
+                        <button
+                          onClick={onClearError}
+                          className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded bg-[var(--chat-surface)] text-[var(--chat-text-secondary)] hover:bg-[var(--chat-border)] transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                          Dismiss
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 

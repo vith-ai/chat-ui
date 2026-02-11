@@ -595,6 +595,45 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
             return { ...msg, toolCalls: updatedCalls }
           })
         },
+        onQuestion: (question) => {
+          setPendingQuestion(question)
+        },
+        onApproval: (approval) => {
+          setPendingApproval(approval)
+        },
+        onTask: (task) => {
+          setTasks((prev) => {
+            const existingIndex = prev.findIndex((t) => t.id === task.id)
+            if (existingIndex >= 0) {
+              const updated = [...prev]
+              updated[existingIndex] = task
+              return updated
+            }
+            return [...prev, task]
+          })
+        },
+        onDiff: (diff) => {
+          setDiffs((prev) => {
+            const existingIndex = prev.findIndex((d) => d.path === diff.path)
+            if (existingIndex >= 0) {
+              const updated = [...prev]
+              updated[existingIndex] = diff
+              return updated
+            }
+            return [...prev, diff]
+          })
+        },
+        onArtifact: (artifact) => {
+          setArtifacts((prev) => {
+            const existingIndex = prev.findIndex((a) => a.id === artifact.id)
+            if (existingIndex >= 0) {
+              const updated = [...prev]
+              updated[existingIndex] = artifact
+              return updated
+            }
+            return [...prev, artifact]
+          })
+        },
       })
 
       const streamingId = streamingMessageIdRef.current
