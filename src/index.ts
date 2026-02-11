@@ -8,6 +8,7 @@ export {
   DiffView,
   QuestionCard,
   ChatContainer,
+  ArtifactPanel,
 } from './components'
 
 export type {
@@ -20,6 +21,7 @@ export type {
   QuestionCardProps,
   ChatContainerProps,
   EmptyStateLayout,
+  ArtifactPanelProps,
 } from './components'
 
 // Types
