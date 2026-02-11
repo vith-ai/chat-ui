@@ -2,12 +2,9 @@
 
 Beautiful, model-agnostic React components for building agentic chat interfaces.
 
-[![npm version](https://img.shields.io/npm/v/@vith-ai/chat-ui.svg)](https://www.npmjs.com/package/@vith-ai/chat-ui)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-![Chat UI Demo](https://chat-ui.vith.ai/og.png)
-
-**[Live Demo](https://chat-ui.vith.ai)** · **[Documentation](https://chat-ui.vith.ai/docs)**
+**[Live Demo](https://chat.vith.ai)**
 
 ## Features
 
