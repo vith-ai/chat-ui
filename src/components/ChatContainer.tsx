@@ -64,6 +64,8 @@ export interface ChatContainerProps {
    * @default true when emptyStateLayout is 'top-input', false otherwise
    */
   showInputHint?: boolean
+  /** Render custom content after each message (for approvals, diffs, artifacts, etc.) */
+  renderMessageExtras?: (message: ChatMessage, isStreaming: boolean) => React.ReactNode
 }
 
 export function ChatContainer({
@@ -86,6 +88,7 @@ export function ChatContainer({
   emptyStateLayout = 'default',
   emptyStatePlaceholder,
   showInputHint,
+  renderMessageExtras,
 }: ChatContainerProps) {
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -332,14 +335,17 @@ export function ChatContainer({
                 <div key={message.id}>
                   {/* For non-streaming messages, render normally */}
                   {!isStreamingMessage && (
-                    <MessageBubble
-                      message={message}
-                      assistantAvatar={assistantAvatar}
-                      userAvatar={userAvatar}
-                      renderToolCalls={
-                        message.toolCalls?.length ? () => renderToolCalls(message.toolCalls!) : undefined
-                      }
-                    />
+                    <>
+                      <MessageBubble
+                        message={message}
+                        assistantAvatar={assistantAvatar}
+                        userAvatar={userAvatar}
+                        renderToolCalls={
+                          message.toolCalls?.length ? () => renderToolCalls(message.toolCalls!) : undefined
+                        }
+                      />
+                      {renderMessageExtras?.(message, false)}
+                    </>
                   )}
 
                   {/* For streaming message, render thinking/tasks FIRST, then message */}
@@ -384,6 +390,7 @@ export function ChatContainer({
                         assistantAvatar={assistantAvatar}
                         userAvatar={userAvatar}
                       />
+                      {renderMessageExtras?.(message, true)}
                     </>
                   )}
                 </div>

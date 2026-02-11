@@ -18,9 +18,6 @@ import {
   Sparkles,
   Sun,
   Moon,
-  Send,
-  Square,
-  Loader2,
   MessageSquare,
   Trash2,
   ChevronDown,
@@ -29,13 +26,9 @@ import clsx from 'clsx'
 
 // Import from the library
 import {
-  MessageBubble,
-  ThinkingBox,
-  ToolCallCard,
-  TodoBox,
+  ChatContainer,
   ApprovalCard,
   DiffView,
-  QuestionCard,
   useChat,
 } from '@vith-ai/chat-ui'
 import type {
@@ -932,7 +925,6 @@ function ChatDemo() {
   })
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
-  const [input, setInput] = useState('')
   const [currentArtifact, setCurrentArtifact] = useState<Artifact | null>(null)
 
   // Dogfood the useChat hook with mock adapter
@@ -953,22 +945,12 @@ function ChatDemo() {
   const setMessages = setChatMessages as React.Dispatch<React.SetStateAction<DemoMessage[]>>
   const [showArtifactPanel, setShowArtifactPanel] = useState(true)
   const [showConversationList, setShowConversationList] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const conversationDropdownRef = useRef<HTMLDivElement>(null)
 
   // Save conversations to localStorage
   useEffect(() => {
     localStorage.setItem('chat-ui-conversations', JSON.stringify(conversations))
   }, [conversations])
-
-  // Auto-resize textarea
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto'
-      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 150) + 'px'
-    }
-  }, [input])
 
   // Save current conversation when messages change
   useEffect(() => {
@@ -1018,14 +1000,6 @@ function ChatDemo() {
     }
   }
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages, streamingThinking])
-
   const handleApproval = (messageId: string, approved: boolean) => {
     // Remove the approval from the message (it's been handled)
     setMessages(prev => prev.map(msg => {
@@ -1045,42 +1019,29 @@ function ChatDemo() {
     setTimeout(() => setMessages(prev => [...prev, followUp]), 500)
   }
 
-  const handleQuestion = (messageId: string, answer: string) => {
-    // Remove the question from the message
-    setMessages(prev => prev.map(msg => {
-      if (msg.id === messageId) {
-        return { ...msg, question: undefined }
-      }
-      return msg
-    }))
-    // Add user answer and follow-up
-    const userAnswer: DemoMessage = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: answer,
-    }
+  // Handle question answers from ChatContainer
+  const handleAnswerQuestion = (answer: string | string[]) => {
+    const answerText = Array.isArray(answer) ? answer.join(', ') : answer
+    // Add follow-up message
     const followUp: DemoMessage = {
       id: (Date.now() + 1).toString(),
       role: 'assistant',
-      content: `Got it! I'll configure the database using **${answer}**.\n\nConfiguration has been set up successfully. You can now connect to your database.`,
+      content: `Got it! I'll configure the database using **${answerText}**.\n\nConfiguration has been set up successfully. You can now connect to your database.`,
       toolCalls: [
-        { id: 't1', name: 'write_config', input: { method: answer }, status: 'complete' },
+        { id: 't1', name: 'write_config', input: { method: answerText }, status: 'complete' },
       ],
     }
-    setTimeout(() => {
-      setMessages(prev => [...prev, userAnswer])
-      setTimeout(() => setMessages(prev => [...prev, followUp]), 800)
-    }, 300)
+    setTimeout(() => setMessages(prev => [...prev, followUp]), 300)
   }
 
-  const handleSend = async () => {
-    if (!input.trim() || isProcessing) return
+  const handleSend = async (messageText: string) => {
+    if (!messageText.trim() || isProcessing) return
 
     // Create a new conversation if this is the first user message
     if (!currentConversationId) {
       const newConv: Conversation = {
         id: Date.now().toString(),
-        title: input.slice(0, 30) + (input.length > 30 ? '...' : ''),
+        title: messageText.slice(0, 30) + (messageText.length > 30 ? '...' : ''),
         messages: [...messages],
         createdAt: Date.now(),
       }
@@ -1090,24 +1051,84 @@ function ChatDemo() {
       // Update conversation title if it's still "New Chat"
       setConversations(prev => prev.map(conv =>
         conv.id === currentConversationId && conv.title === 'New Chat'
-          ? { ...conv, title: input.slice(0, 30) + (input.length > 30 ? '...' : '') }
+          ? { ...conv, title: messageText.slice(0, 30) + (messageText.length > 30 ? '...' : '') }
           : conv
       ))
     }
 
-    const userInput = input
-    setInput('')
-
     // Use the mock adapter via useChat - this dogfoods the library
-    await sendChatMessage(userInput)
+    await sendChatMessage(messageText)
 
-    // Show artifact panel if response has one
-    const lastMsg = messages[messages.length - 1] as DemoMessage
-    if (lastMsg?.artifact) {
-      setCurrentArtifact(lastMsg.artifact)
-      setShowArtifactPanel(true)
-    }
+    // Show artifact panel if response has one (check after a tick to get updated messages)
+    setTimeout(() => {
+      // We need to check from messages state at this point
+    }, 100)
   }
+
+  // Get tasks from the last assistant message (for ChatContainer)
+  const lastAssistantMessage = [...messages].reverse().find(m => m.role === 'assistant') as DemoMessage | undefined
+  const currentTasks = lastAssistantMessage?.tasks
+
+  // Get pending question from the last assistant message
+  const pendingQuestion = lastAssistantMessage?.question
+
+  // Render message extras (approval, diff, artifact buttons) - called by ChatContainer
+  const renderMessageExtras = (message: ChatMessage, isStreaming: boolean) => {
+    const demoMsg = message as DemoMessage
+    return (
+      <>
+        {/* Diff */}
+        {demoMsg.diff && (
+          <div className="mx-4 mb-2">
+            <DiffView change={demoMsg.diff} showActions={false} />
+          </div>
+        )}
+
+        {/* Approval */}
+        {demoMsg.approval && (
+          <div className="mx-4 mb-2">
+            <ApprovalCard
+              request={demoMsg.approval}
+              onApprove={() => handleApproval(demoMsg.id, true)}
+              onDeny={() => handleApproval(demoMsg.id, false)}
+            />
+          </div>
+        )}
+
+        {/* Artifact button */}
+        {demoMsg.artifact && !isStreaming && (
+          <motion.button
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            onClick={() => {
+              setCurrentArtifact(demoMsg.artifact!)
+              setShowArtifactPanel(true)
+            }}
+            className="mx-4 mb-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-accent/10 border border-accent/20 text-accent text-sm hover:bg-accent/20 transition-colors"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>View {demoMsg.artifact.type}: {demoMsg.artifact.title}</span>
+            <PanelRight className="w-4 h-4 ml-auto" />
+          </motion.button>
+        )}
+      </>
+    )
+  }
+
+  // Welcome message with suggestions
+  const welcomeMessage = (
+    <div className="text-center">
+      <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center mb-3 mx-auto">
+        <MessageSquare className="w-6 h-6 text-accent" />
+      </div>
+      <h2 className="text-sm font-medium mb-1" style={{ color: 'var(--chat-text)' }}>
+        Start a conversation
+      </h2>
+      <p className="text-xs mb-4" style={{ color: 'var(--chat-text-secondary)' }}>
+        Try: analyze, code, spreadsheet, search, build, deploy...
+      </p>
+    </div>
+  )
 
   return (
     <div className="flex-1 flex min-h-0">
@@ -1180,266 +1201,51 @@ function ChatDemo() {
             )}
           </div>
 
-          <button
-            onClick={createNewConversation}
-            className="p-2 rounded-lg hover:bg-surface-elevated transition-colors"
-            title="New conversation"
-          >
-            <Plus className="w-4 h-4" style={{ color: 'var(--chat-text-secondary)' }} />
-          </button>
-        </div>
-
-        <div className={clsx('flex-1 overflow-y-auto flex flex-col')}>
-          <div className={clsx(
-            !showArtifactPanel && 'max-w-3xl mx-auto w-full',
-            messages.length === 0 ? 'flex-1 flex flex-col' : ''
-          )}>
-
-          {/* Empty state - input at top, suggestions centered below like Vith */}
-          {messages.length === 0 && (
-            <>
-              {/* Input area - at top for empty conversations */}
-              <div className="p-4">
-                <div className="bg-surface-elevated border border-surface-border rounded-xl focus-within:border-accent focus-within:ring-1 focus-within:ring-accent/50 transition-all">
-                  <textarea
-                    ref={textareaRef}
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault()
-                        handleSend()
-                      }
-                    }}
-                    placeholder="Ask me anything..."
-                    disabled={isProcessing}
-                    rows={4}
-                    className="w-full px-4 py-3 bg-transparent text-sm focus:outline-none resize-none"
-                    style={{ color: 'var(--chat-text)' }}
-                  />
-                  <div className="px-4 pb-3 flex items-center justify-between">
-                    <p className="text-xs" style={{ color: 'var(--chat-text-secondary)' }}>
-                      Enter to send · Shift+Enter for new line
-                    </p>
-                    <div className="flex items-center gap-2">
-                      {/* Artifact panel toggle */}
-                      <button
-                        onClick={() => setShowArtifactPanel(!showArtifactPanel)}
-                        className={clsx(
-                          'p-2 rounded-lg transition-colors',
-                          showArtifactPanel
-                            ? 'bg-accent/20 text-accent'
-                            : currentArtifact
-                              ? 'bg-accent text-white animate-pulse'
-                              : 'hover:bg-surface-border/50'
-                        )}
-                        style={{ color: showArtifactPanel || currentArtifact ? undefined : 'var(--chat-text-secondary)' }}
-                        title={showArtifactPanel ? 'Hide artifact panel' : 'Show artifact panel'}
-                      >
-                        <PanelRight className="w-4 h-4" />
-                      </button>
-                      {isProcessing ? (
-                        <button
-                          onClick={stopProcessing}
-                          className="px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors flex items-center gap-1.5 text-xs font-medium"
-                        >
-                          <Square className="w-3 h-3" />
-                          Stop
-                        </button>
-                      ) : (
-                        <button
-                          onClick={handleSend}
-                          disabled={!input.trim()}
-                          className={clsx(
-                            'px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-medium',
-                            input.trim()
-                              ? 'bg-accent hover:bg-accent-dark text-white'
-                              : 'bg-surface-border text-[var(--chat-text-secondary)] cursor-not-allowed'
-                          )}
-                        >
-                          <Send className="w-3 h-3" />
-                          Send
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Centered suggestions */}
-              <div className="flex-1 flex flex-col items-center justify-center px-4 text-center">
-                <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center mb-3">
-                  <MessageSquare className="w-6 h-6 text-accent" />
-                </div>
-                <h2 className="text-sm font-medium mb-1" style={{ color: 'var(--chat-text)' }}>
-                  Start a conversation
-                </h2>
-                <p className="text-xs mb-6" style={{ color: 'var(--chat-text-secondary)' }}>
-                  Try a command below
-                </p>
-                <div className="flex flex-wrap justify-center gap-2 max-w-md">
-                  {['analyze', 'code', 'spreadsheet', 'pdf', 'search', 'build', 'image', 'deploy', 'refactor', 'configure'].map(cmd => (
-                    <button
-                      key={cmd}
-                      onClick={() => {
-                        setInput(cmd)
-                        setTimeout(() => handleSend(), 100)
-                      }}
-                      className="px-3 py-1.5 rounded-lg text-xs bg-surface-elevated border border-surface-border hover:border-accent/50 transition-colors"
-                      style={{ color: 'var(--chat-text)' }}
-                    >
-                      {cmd}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-
-          {messages.map(message => (
-            <div key={message.id}>
-              {/* User messages render normally */}
-              {message.role === 'user' && <MessageBubble message={message} />}
-
-              {/* Assistant messages: show thinking/tools/tasks FIRST, then the response */}
-              {message.role === 'assistant' && (
-                <>
-                  {/* Don't show inline thinking if still streaming (streamingThinking shows it separately) */}
-                  {message.thinking && !(isProcessing && message.id === messages[messages.length - 1]?.id) && (
-                    <div className="mx-4 mb-2">
-                      <ThinkingBox thinking={message.thinking} defaultCollapsed={false} />
-                    </div>
-                  )}
-                  {message.toolCalls && message.toolCalls.length > 0 && (
-                    <div className="mx-4 mb-2 space-y-2">
-                      {message.toolCalls.map(tc => (
-                        <ToolCallCard key={tc.id} toolCall={tc} />
-                      ))}
-                    </div>
-                  )}
-                  {message.tasks && (
-                    <div className="mx-4 mb-2">
-                      <TodoBox tasks={message.tasks} />
-                    </div>
-                  )}
-                  {message.diff && (
-                    <div className="mx-4 mb-2">
-                      <DiffView change={message.diff} showActions={false} />
-                    </div>
-                  )}
-                  {message.approval && (
-                    <div className="mx-4 mb-2">
-                      <ApprovalCard
-                        request={message.approval}
-                        onApprove={() => handleApproval(message.id, true)}
-                        onDeny={() => handleApproval(message.id, false)}
-                      />
-                    </div>
-                  )}
-                  {message.question && (
-                    <div className="mx-4 mb-2">
-                      <QuestionCard
-                        question={message.question}
-                        onAnswer={(answer) => handleQuestion(message.id, answer as string)}
-                      />
-                    </div>
-                  )}
-                  {/* The actual assistant response text comes AFTER all the above */}
-                  <MessageBubble message={message} />
-                  {message.artifact && (
-                    <motion.button
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      onClick={() => {
-                        setCurrentArtifact(message.artifact!)
-                        setShowArtifactPanel(true)
-                      }}
-                      className="mx-4 mb-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-accent/10 border border-accent/20 text-accent text-sm hover:bg-accent/20 transition-colors"
-                    >
-                      <Sparkles className="w-4 h-4" />
-                      <span>View {message.artifact.type}: {message.artifact.title}</span>
-                      <PanelRight className="w-4 h-4 ml-auto" />
-                    </motion.button>
-                  )}
-                </>
+          <div className="flex items-center gap-1">
+            {/* Artifact panel toggle */}
+            <button
+              onClick={() => setShowArtifactPanel(!showArtifactPanel)}
+              className={clsx(
+                'p-2 rounded-lg transition-colors',
+                showArtifactPanel
+                  ? 'bg-accent/20 text-accent'
+                  : currentArtifact
+                    ? 'bg-accent text-white animate-pulse'
+                    : 'hover:bg-surface-elevated'
               )}
-            </div>
-          ))}
-
-          {/* Streaming thinking shown separately (models library's thinkingText state) */}
-          {streamingThinking && (
-            <div className="mx-4 mb-2">
-              <ThinkingBox thinking={streamingThinking} isStreaming={true} defaultCollapsed={false} />
-            </div>
-          )}
-
-          {/* Simple loading spinner when processing but no thinking yet */}
-          {isProcessing && !streamingThinking && messages[messages.length - 1]?.role === 'user' && (
-            <div className="flex items-center gap-2 px-4 py-3 text-[color:var(--chat-text-secondary)]">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="text-sm">Processing...</span>
-            </div>
-          )}
-
-          <div ref={messagesEndRef} />
+              style={{ color: showArtifactPanel || currentArtifact ? undefined : 'var(--chat-text-secondary)' }}
+              title={showArtifactPanel ? 'Hide artifact panel' : 'Show artifact panel'}
+            >
+              <PanelRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={createNewConversation}
+              className="p-2 rounded-lg hover:bg-surface-elevated transition-colors"
+              title="New conversation"
+            >
+              <Plus className="w-4 h-4" style={{ color: 'var(--chat-text-secondary)' }} />
+            </button>
           </div>
         </div>
 
-        {/* Bottom input area - only shown when there are messages */}
-        {messages.length > 0 && (
-          <div className="p-4 border-t border-surface-border">
-            <div className={clsx('flex items-end gap-2', !showArtifactPanel && 'max-w-3xl mx-auto')}>
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    handleSend()
-                  }
-                }}
-                placeholder="Try: analyze, code, spreadsheet, search, build, image, deploy..."
-                disabled={isProcessing}
-                rows={1}
-                className="flex-1 px-4 py-3 rounded-xl border border-surface-border bg-surface-elevated text-sm focus:outline-none focus:border-accent transition-colors disabled:opacity-50 resize-none overflow-hidden"
-                style={{ color: 'var(--chat-text)' }}
-              />
-              {isProcessing ? (
-                <button
-                  onClick={stopProcessing}
-                  className="p-3 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors"
-                >
-                  <Square className="w-5 h-5" />
-                </button>
-              ) : (
-                <button
-                  onClick={handleSend}
-                  disabled={!input.trim()}
-                  className="p-3 rounded-xl bg-accent text-white hover:bg-accent-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Send className="w-5 h-5" />
-                </button>
-              )}
-              {/* Artifact panel toggle */}
-              <button
-                onClick={() => setShowArtifactPanel(!showArtifactPanel)}
-                className={clsx(
-                  'p-3 rounded-xl transition-colors',
-                  showArtifactPanel
-                    ? 'bg-accent/20 text-accent'
-                    : currentArtifact
-                      ? 'bg-accent text-white animate-pulse'
-                      : 'bg-surface-elevated'
-                )}
-                style={{ color: showArtifactPanel || currentArtifact ? undefined : 'var(--chat-text-secondary)' }}
-                title={showArtifactPanel ? 'Hide artifact panel' : 'Show artifact panel'}
-              >
-                <PanelRight className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        )}
+        {/* ChatContainer from the library - this is the core dogfooding */}
+        <ChatContainer
+          messages={messages}
+          isProcessing={isProcessing}
+          thinkingText={streamingThinking}
+          tasks={currentTasks}
+          pendingQuestion={pendingQuestion}
+          onSend={handleSend}
+          onStop={stopProcessing}
+          onAnswerQuestion={handleAnswerQuestion}
+          emptyStateLayout="top-input"
+          emptyStatePlaceholder="Try: analyze, code, spreadsheet, search, build, deploy..."
+          placeholder="Try: analyze, code, spreadsheet, search, build, deploy..."
+          welcomeMessage={welcomeMessage}
+          centered={!showArtifactPanel}
+          renderMessageExtras={renderMessageExtras}
+          className="flex-1"
+        />
       </div>
 
       {/* Artifact Panel */}
