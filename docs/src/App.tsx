@@ -1070,11 +1070,19 @@ function ChatDemo() {
     </div>
   )
 
-  // Handle artifact from ChatContainer
-  const handleArtifact = (artifact: Artifact) => {
-    setCurrentArtifact(artifact)
-    setShowArtifactPanel(true)
-  }
+  // Detect new artifacts from messages and show artifact panel
+  const lastArtifactIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1]
+    if (lastMessage?.artifacts?.length) {
+      const latestArtifact = lastMessage.artifacts[lastMessage.artifacts.length - 1]
+      if (latestArtifact.id !== lastArtifactIdRef.current) {
+        lastArtifactIdRef.current = latestArtifact.id
+        setCurrentArtifact(latestArtifact)
+        setShowArtifactPanel(true)
+      }
+    }
+  }, [messages])
 
   return (
     <div className="flex-1 flex min-h-0">
@@ -1185,7 +1193,6 @@ function ChatDemo() {
           onStop={stopProcessing}
           onAnswerQuestion={handleAnswerQuestion}
           onAnswerApproval={handleAnswerApproval}
-          onArtifact={handleArtifact}
           suggestions={['analyze', 'code', 'spreadsheet', 'pdf', 'search', 'build', 'image', 'deploy', 'refactor', 'configure']}
           emptyStateLayout="top-input"
           placeholder="Type a message..."
