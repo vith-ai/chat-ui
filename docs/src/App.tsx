@@ -27,8 +27,6 @@ import clsx from 'clsx'
 // Import from the library
 import {
   ChatContainer,
-  ApprovalCard,
-  DiffView,
   useChat,
 } from '@vith-ai/chat-ui'
 import type {
@@ -1071,29 +1069,24 @@ function ChatDemo() {
   // Get pending question from the last assistant message
   const pendingQuestion = lastAssistantMessage?.question
 
-  // Render message extras (approval, diff, artifact buttons) - called by ChatContainer
+  // Get pending approval from the last assistant message
+  const pendingApproval = lastAssistantMessage?.approval
+
+  // Get diffs from the last assistant message (wrap in array for ChatContainer)
+  const currentDiffs = lastAssistantMessage?.diff ? [lastAssistantMessage.diff] : undefined
+
+  // Handle approval response via ChatContainer
+  const handleAnswerApproval = (approved: boolean) => {
+    if (!lastAssistantMessage?.id) return
+    handleApproval(lastAssistantMessage.id, approved)
+  }
+
+  // Render message extras (artifact buttons) - called by ChatContainer
+  // Note: Approval and diff are now handled by ChatContainer via pendingApproval and diffs props
   const renderMessageExtras = (message: ChatMessage, isStreaming: boolean) => {
     const demoMsg = message as DemoMessage
     return (
       <>
-        {/* Diff */}
-        {demoMsg.diff && (
-          <div className="mx-4 mb-2">
-            <DiffView change={demoMsg.diff} showActions={false} />
-          </div>
-        )}
-
-        {/* Approval */}
-        {demoMsg.approval && (
-          <div className="mx-4 mb-2">
-            <ApprovalCard
-              request={demoMsg.approval}
-              onApprove={() => handleApproval(demoMsg.id, true)}
-              onDeny={() => handleApproval(demoMsg.id, false)}
-            />
-          </div>
-        )}
-
         {/* Artifact button */}
         {demoMsg.artifacts?.[0] && !isStreaming && (
           <motion.button
@@ -1240,9 +1233,12 @@ function ChatDemo() {
           thinkingText={streamingThinking}
           tasks={currentTasks}
           pendingQuestion={pendingQuestion}
+          pendingApproval={pendingApproval}
+          diffs={currentDiffs}
           onSend={handleSend}
           onStop={stopProcessing}
           onAnswerQuestion={handleAnswerQuestion}
+          onAnswerApproval={handleAnswerApproval}
           onArtifact={handleArtifact}
           suggestions={['analyze', 'code', 'spreadsheet', 'pdf', 'search', 'build', 'image', 'deploy', 'refactor', 'configure']}
           emptyStateLayout="top-input"

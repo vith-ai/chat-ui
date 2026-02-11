@@ -158,17 +158,34 @@ export interface ProviderConfig {
   timeout?: number
 }
 
+/** Options passed to adapter.sendMessage() - callbacks for all agentic features */
+export interface SendMessageOptions {
+  /** Called when streaming text content */
+  onStream?: (chunk: string) => void
+  /** Called when streaming thinking/reasoning */
+  onThinking?: (thinking: string) => void
+  /** Called when a tool call is made or updated */
+  onToolCall?: (toolCall: ToolCall) => void
+  /** Called when the assistant asks a question requiring user input */
+  onQuestion?: (question: PendingQuestion) => void
+  /** Called when the assistant requests approval for an action */
+  onApproval?: (approval: ApprovalRequest) => void
+  /** Called when a task is added or updated */
+  onTask?: (task: TaskItem) => void
+  /** Called when a file diff is generated */
+  onDiff?: (diff: FileChange) => void
+  /** Called when an artifact is created */
+  onArtifact?: (artifact: Artifact) => void
+  /** AbortSignal for cancellation */
+  signal?: AbortSignal
+}
+
 // Adapter interface that all providers implement
 export interface ChatAdapter {
   /** Send a message and get a response */
   sendMessage(
     messages: ChatMessage[],
-    options?: {
-      onStream?: (chunk: string) => void
-      onThinking?: (thinking: string) => void
-      onToolCall?: (toolCall: ToolCall) => void
-      signal?: AbortSignal
-    }
+    options?: SendMessageOptions
   ): Promise<ChatMessage>
 
   /** Provider name for display */
