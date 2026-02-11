@@ -2,171 +2,8 @@ import React, { useState } from 'react'
 import { clsx } from 'clsx'
 import { Code, FileText, Image, Table, File, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { Artifact, ArtifactType } from '../types'
-
-/**
- * Lightweight markdown renderer - handles essentials without external dependencies.
- * Supports: headers, bold, italic, links, code, lists, blockquotes, horizontal rules.
- */
-function renderMarkdown(content: string): React.ReactNode {
-  const lines = content.split('\n')
-  const elements: React.ReactNode[] = []
-  let i = 0
-  let key = 0
-
-  const processInline = (text: string): React.ReactNode[] => {
-    const result: React.ReactNode[] = []
-    let remaining = text
-    let inlineKey = 0
-
-    while (remaining.length > 0) {
-      // Code inline: `code`
-      const codeMatch = remaining.match(/^`([^`]+)`/)
-      if (codeMatch) {
-        result.push(<code key={inlineKey++} className="chat-md-inline-code">{codeMatch[1]}</code>)
-        remaining = remaining.slice(codeMatch[0].length)
-        continue
-      }
-
-      // Bold: **text** or __text__
-      const boldMatch = remaining.match(/^(\*\*|__)(.+?)\1/)
-      if (boldMatch) {
-        result.push(<strong key={inlineKey++}>{processInline(boldMatch[2])}</strong>)
-        remaining = remaining.slice(boldMatch[0].length)
-        continue
-      }
-
-      // Italic: *text* or _text_
-      const italicMatch = remaining.match(/^(\*|_)(.+?)\1/)
-      if (italicMatch) {
-        result.push(<em key={inlineKey++}>{processInline(italicMatch[2])}</em>)
-        remaining = remaining.slice(italicMatch[0].length)
-        continue
-      }
-
-      // Link: [text](url)
-      const linkMatch = remaining.match(/^\[([^\]]+)\]\(([^)]+)\)/)
-      if (linkMatch) {
-        result.push(
-          <a key={inlineKey++} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" className="chat-md-link">
-            {linkMatch[1]}
-          </a>
-        )
-        remaining = remaining.slice(linkMatch[0].length)
-        continue
-      }
-
-      // Plain text until next special character
-      const plainMatch = remaining.match(/^[^`*_\[]+/)
-      if (plainMatch) {
-        result.push(plainMatch[0])
-        remaining = remaining.slice(plainMatch[0].length)
-        continue
-      }
-
-      // Single special char that didn't match patterns
-      result.push(remaining[0])
-      remaining = remaining.slice(1)
-    }
-
-    return result
-  }
-
-  while (i < lines.length) {
-    const line = lines[i]
-
-    // Code block: ```
-    if (line.startsWith('```')) {
-      const lang = line.slice(3).trim()
-      const codeLines: string[] = []
-      i++
-      while (i < lines.length && !lines[i].startsWith('```')) {
-        codeLines.push(lines[i])
-        i++
-      }
-      elements.push(
-        <pre key={key++} className="chat-md-code-block" data-lang={lang || undefined}>
-          <code>{codeLines.join('\n')}</code>
-        </pre>
-      )
-      i++
-      continue
-    }
-
-    // Horizontal rule: ---, ***, ___
-    if (/^([-*_])\1{2,}$/.test(line.trim())) {
-      elements.push(<hr key={key++} className="chat-md-hr" />)
-      i++
-      continue
-    }
-
-    // Headers: # ## ### etc
-    const headerMatch = line.match(/^(#{1,6})\s+(.+)$/)
-    if (headerMatch) {
-      const level = headerMatch[1].length
-      const Tag = `h${level}` as keyof JSX.IntrinsicElements
-      elements.push(<Tag key={key++} className={`chat-md-h${level}`}>{processInline(headerMatch[2])}</Tag>)
-      i++
-      continue
-    }
-
-    // Blockquote: >
-    if (line.startsWith('>')) {
-      const quoteLines: string[] = []
-      while (i < lines.length && lines[i].startsWith('>')) {
-        quoteLines.push(lines[i].replace(/^>\s?/, ''))
-        i++
-      }
-      elements.push(
-        <blockquote key={key++} className="chat-md-blockquote">
-          {renderMarkdown(quoteLines.join('\n'))}
-        </blockquote>
-      )
-      continue
-    }
-
-    // Unordered list: - or *
-    if (/^[-*]\s/.test(line)) {
-      const listItems: string[] = []
-      while (i < lines.length && /^[-*]\s/.test(lines[i])) {
-        listItems.push(lines[i].replace(/^[-*]\s/, ''))
-        i++
-      }
-      elements.push(
-        <ul key={key++} className="chat-md-ul">
-          {listItems.map((item, idx) => <li key={idx}>{processInline(item)}</li>)}
-        </ul>
-      )
-      continue
-    }
-
-    // Ordered list: 1. 2. etc
-    if (/^\d+\.\s/.test(line)) {
-      const listItems: string[] = []
-      while (i < lines.length && /^\d+\.\s/.test(lines[i])) {
-        listItems.push(lines[i].replace(/^\d+\.\s/, ''))
-        i++
-      }
-      elements.push(
-        <ol key={key++} className="chat-md-ol">
-          {listItems.map((item, idx) => <li key={idx}>{processInline(item)}</li>)}
-        </ol>
-      )
-      continue
-    }
-
-    // Empty line
-    if (line.trim() === '') {
-      i++
-      continue
-    }
-
-    // Paragraph
-    elements.push(<p key={key++} className="chat-md-p">{processInline(line)}</p>)
-    i++
-  }
-
-  return elements
-}
+import { renderMarkdown } from '../utils/markdown'
+import type { ArtifactRegistry } from '../artifacts'
 
 /**
  * ArtifactPanel - Display artifacts with built-in renderers
@@ -197,6 +34,11 @@ export interface ArtifactPanelProps {
   artifacts?: Artifact[]
   /** Custom renderers by type (override built-in) */
   renderers?: Partial<Record<ArtifactType, (artifact: Artifact) => React.ReactNode>>
+  /**
+   * ArtifactRegistry instance for looking up renderers
+   * If provided, registry renderers take priority over built-in, then fall back to `renderers` prop
+   */
+  registry?: ArtifactRegistry
   /** Currently selected artifact index */
   selectedIndex?: number
   /** Called when artifact selection changes */
@@ -346,6 +188,7 @@ const builtInRenderers: Record<ArtifactType, (artifact: Artifact) => React.React
 export function ArtifactPanel({
   artifacts = [],
   renderers = {},
+  registry,
   selectedIndex: controlledIndex,
   onSelect,
   onClose,
@@ -364,9 +207,18 @@ export function ArtifactPanel({
 
   const currentArtifact = artifacts[selectedIndex] || artifacts[0]
 
-  // Get renderer: custom first, then built-in, then fallback
-  const getRenderer = (type: ArtifactType) => {
-    return renderers[type] || builtInRenderers[type] || builtInRenderers.custom
+  // Get renderer with priority: registry -> renderers prop -> built-in -> fallback
+  const getRenderer = (artifact: Artifact): (artifact: Artifact) => React.ReactNode => {
+    // Try registry first
+    if (registry?.canRender(artifact)) {
+      return (a) => registry.render(a)
+    }
+    // Then custom renderers prop
+    if (renderers[artifact.type]) {
+      return renderers[artifact.type]!
+    }
+    // Then built-in
+    return builtInRenderers[artifact.type] || builtInRenderers.custom
   }
 
   const goToPrev = () => setSelectedIndex(Math.max(0, selectedIndex - 1))
@@ -419,7 +271,7 @@ export function ArtifactPanel({
 
       {/* Content area */}
       <div className="chat-artifact-content">
-        {getRenderer(currentArtifact.type)(currentArtifact)}
+        {getRenderer(currentArtifact)(currentArtifact)}
       </div>
     </div>
   )

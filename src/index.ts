@@ -87,3 +87,4 @@ export {
 
 // Utilities
 export { generateId } from './utils'
+export { renderMarkdown } from './utils/markdown'

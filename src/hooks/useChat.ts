@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import type { ChatMessage, TaskItem, PendingQuestion, ApprovalRequest, FileChange, Artifact, ChatAdapter, ToolCall, ConversationStore, Conversation } from '../types'
+import type { ChatMessage, TaskItem, PendingQuestion, ApprovalRequest, FileChange, Artifact, ChatAdapter, ToolCall, ConversationStore, Conversation, ToolRegistry, PermissionConfig, ToolResult, ToolExecutor } from '../types'
 import { generateId } from '../utils'
+import { getEffectivePermission } from '../permissions'
 
 export interface UseChatOptions {
   /** Initial messages (ignored if conversationStore is provided) */
@@ -18,6 +19,21 @@ export interface UseChatOptions {
   autoTitle?: boolean
   /** Maximum title length for auto-generated titles (default: 50) */
   maxTitleLength?: number
+  /**
+   * Tool executor function - called to execute tools.
+   * When provided with toolRegistry/permissionConfig, permissions are checked before execution.
+   */
+  toolExecutor?: ToolExecutor
+  /**
+   * Tool registry for permission checking.
+   * Works with permissionConfig to control tool approval flow.
+   */
+  toolRegistry?: ToolRegistry
+  /**
+   * Permission configuration for tool approval.
+   * Controls which tools require confirmation, notification, or are auto-approved.
+   */
+  permissionConfig?: PermissionConfig
   /** Called when a message is sent */
   onSend?: (message: ChatMessage) => void
   /** Called when a response is received */
@@ -45,6 +61,8 @@ export interface UseChatReturn {
   artifacts: Artifact[]
   /** Current error (null if none) */
   error: Error | null
+  /** Adapter feature flags (null if no adapter) */
+  adapterFeatures: { streaming: boolean; thinking: boolean; toolUse: boolean } | null
   /** Send a message */
   sendMessage: (content: string) => Promise<void>
   /** Stop processing */
@@ -101,6 +119,9 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     conversationStore,
     autoTitle = true,
     maxTitleLength = 50,
+    toolExecutor: userToolExecutor,
+    toolRegistry,
+    permissionConfig,
     onSend,
     onResponse,
     onError,
@@ -124,6 +145,11 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   const abortControllerRef = useRef<AbortController | null>(null)
   const streamingMessageIdRef = useRef<string | null>(null)
   const persistTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Track pending tool approval - resolves when user approves/denies
+  const pendingToolApprovalRef = useRef<{
+    toolCall: ToolCall
+    resolve: (approved: boolean) => void
+  } | null>(null)
 
   // Get current conversation object
   const currentConversation = conversations.find((c) => c.id === currentConversationId) || null
@@ -271,6 +297,50 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     setMessages((prev) => [...prev, streamingMessage])
   }, [])
 
+  // Permission-aware tool executor that wraps user's toolExecutor
+  const permissionAwareToolExecutor: ToolExecutor | undefined = userToolExecutor
+    ? async (toolCall: ToolCall): Promise<ToolResult> => {
+        // Get effective permission for this tool
+        const defaultConfig: PermissionConfig = { defaultPermission: 'confirm' }
+        const config = permissionConfig || defaultConfig
+        const toolDef = toolRegistry?.tools.find((t) => t.name === toolCall.name)
+        const permission = getEffectivePermission(toolCall.name, toolDef, config)
+
+        // Handle based on permission level
+        if (permission === 'deny') {
+          return {
+            toolCallId: toolCall.id,
+            result: `Tool "${toolCall.name}" is not allowed`,
+            isError: true,
+          }
+        }
+
+        if (permission === 'confirm') {
+          // Show approval UI and wait for user response
+          const approved = await new Promise<boolean>((resolve) => {
+            pendingToolApprovalRef.current = { toolCall, resolve }
+            setPendingApproval({
+              id: toolCall.id,
+              action: toolCall.name,
+              risk: toolDef?.risk || 'medium',
+              details: JSON.stringify(toolCall.input, null, 2),
+            })
+          })
+
+          if (!approved) {
+            return {
+              toolCallId: toolCall.id,
+              result: `User denied execution of "${toolCall.name}"`,
+              isError: true,
+            }
+          }
+        }
+
+        // 'auto' or 'notify' or approved 'confirm' - execute the tool
+        return userToolExecutor(toolCall)
+      }
+    : undefined
+
   const sendMessage = useCallback(
     async (content: string) => {
       const userMessage: ChatMessage = {
@@ -299,6 +369,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
         const response = await adapter.sendMessage(allMessages, {
           signal: abortControllerRef.current.signal,
+          toolExecutor: permissionAwareToolExecutor,
           onStream: (chunk) => {
             ensureStreamingMessage()
             updateStreamingMessage((msg) => ({
@@ -433,7 +504,14 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
       setPendingApproval(null)
 
-      // Just send the message - sendMessage will add the user message
+      // If this is a tool permission approval, resolve the waiting promise
+      if (pendingToolApprovalRef.current) {
+        pendingToolApprovalRef.current.resolve(approved)
+        pendingToolApprovalRef.current = null
+        return
+      }
+
+      // For other approvals, send a message
       sendMessage(approved ? 'Approved' : 'Denied')
     },
     [pendingApproval, sendMessage]
@@ -484,6 +562,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
       const response = await adapter.sendMessage(allMessages, {
         signal: abortControllerRef.current.signal,
+        toolExecutor: permissionAwareToolExecutor,
         onStream: (chunk) => {
           ensureStreamingMessage()
           updateStreamingMessage((msg) => ({
@@ -633,6 +712,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     diffs,
     artifacts,
     error,
+    adapterFeatures: adapter?.features || null,
     sendMessage,
     stopProcessing,
     answerQuestion,

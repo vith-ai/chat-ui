@@ -74,6 +74,40 @@ The `useChat` hook automatically handles streaming by injecting a live assistant
 
 You can detect a streaming message via `message.metadata?.isStreaming === true` if needed for custom styling.
 
+### Error Handling, Retry & Regenerate
+
+`useChat` provides built-in error handling and recovery:
+
+```tsx
+const chat = useChat({ adapter })
+
+// Error state
+if (chat.error) {
+  return (
+    <div>
+      <p>Error: {chat.error.message}</p>
+      <button onClick={chat.clearError}>Dismiss</button>
+      <button onClick={chat.retry}>Retry</button>
+    </div>
+  )
+}
+
+// Regenerate last response (removes it and re-sends)
+<button onClick={chat.regenerate}>Regenerate</button>
+
+// Access adapter capabilities
+if (chat.adapterFeatures?.thinking) {
+  // Show thinking UI
+}
+```
+
+**Available methods:**
+- `error` - Current error (null if none)
+- `clearError()` - Clear the error state
+- `retry()` - Re-send the last user message
+- `regenerate()` - Remove the last assistant response and re-send
+- `adapterFeatures` - `{ streaming, thinking, toolUse }` from the adapter
+
 ## Model Adapters
 
 Pre-built adapters for popular providers:
@@ -369,45 +403,32 @@ import {
 
 ## Conversation Management
 
-Manage multiple conversations with built-in persistence:
+Manage multiple conversations with built-in persistence. The easiest approach is to use the integrated `conversationStore` option in `useChat`:
 
 ```tsx
-import {
-  useConversations,
-  useChat,
-  createLocalStorageStore,
-  createMemoryStore,
-} from '@vith-ai/chat-ui'
+import { useChat, createLocalStorageStore } from '@vith-ai/chat-ui'
 
 function ChatApp() {
-  const conversations = useConversations({
-    // Built-in stores:
-    store: createLocalStorageStore('my-chats'),  // localStorage (default)
-    // store: createMemoryStore(),               // In-memory (SSR/testing)
-    autoTitle: true,        // Auto-generate titles from first message
-    maxTitleLength: 50,
-  })
-
+  // Single hook handles both chat and conversations
   const chat = useChat({
     adapter,
-    // Sync with conversation
-    initialMessages: conversations.currentConversation?.messages || [],
-    onResponse: () => {
-      conversations.updateMessages(chat.messages)
-    },
+    conversationStore: createLocalStorageStore('my-chats'),
+    autoTitle: true,        // Auto-generate titles from first message
+    maxTitleLength: 50,
   })
 
   return (
     <div className="flex">
       {/* Conversation sidebar */}
       <aside>
-        <button onClick={() => conversations.createConversation()}>
+        <button onClick={() => chat.createConversation()}>
           New Chat
         </button>
-        {conversations.conversations.map(conv => (
+        {chat.conversations.map(conv => (
           <button
             key={conv.id}
-            onClick={() => conversations.selectConversation(conv.id)}
+            onClick={() => chat.selectConversation(conv.id)}
+            className={conv.id === chat.currentConversation?.id ? 'active' : ''}
           >
             {conv.title}
           </button>
@@ -421,6 +442,40 @@ function ChatApp() {
       />
     </div>
   )
+}
+```
+
+### Alternative: Separate Hooks
+
+For more control, use `useConversations` separately:
+
+```tsx
+import {
+  useConversations,
+  useChat,
+  createLocalStorageStore,
+  createMemoryStore,
+} from '@vith-ai/chat-ui'
+
+function ChatApp() {
+  const conversations = useConversations({
+    store: createLocalStorageStore('my-chats'),  // localStorage
+    // store: createMemoryStore(),               // In-memory (SSR/testing)
+  })
+
+  const chat = useChat({
+    adapter,
+    initialMessages: conversations.currentConversation?.messages || [],
+  })
+
+  // Manual sync on response
+  useEffect(() => {
+    if (conversations.currentConversation) {
+      conversations.updateMessages(chat.messages)
+    }
+  }, [chat.messages])
+
+  // ... render UI
 }
 ```
 
@@ -690,6 +745,9 @@ import type {
   MessageRole,
   ToolCall,
   ToolCallStatus,
+  ToolResult,      // Result from tool execution
+  ToolExecutor,    // Function type for executing tools
+  SendMessageOptions,  // Options for adapter.sendMessage()
   TaskItem,
   TaskStatus,
 
@@ -701,9 +759,6 @@ import type {
 
   // File changes
   FileChange,
-
-  // Streaming
-  StreamingState,
 
   // Configuration
   ChatTheme,
@@ -753,7 +808,6 @@ import type {
 - `clsx` - Conditional classnames
 - `lucide-react` - Icons
 - `diff` - Diff generation for DiffView
-- `dompurify` - HTML sanitization
 
 ### Optional (install separately)
 
@@ -820,29 +874,45 @@ export default function ChatPage() {
 
 ### With Tool Use
 
+Tool use is configured in the adapter. For Claude, define tools in the adapter config:
+
 ```tsx
-const chat = useChat({
-  adapter,
+import { createClaudeAdapter } from '@vith-ai/chat-ui/adapters/claude'
+import type { ToolExecutor } from '@vith-ai/chat-ui'
+
+// Define your tool executor
+const toolExecutor: ToolExecutor = async (toolCall) => {
+  if (toolCall.name === 'search') {
+    const results = await searchWeb(toolCall.input.query as string)
+    return { toolCallId: toolCall.id, result: results }
+  }
+  return { toolCallId: toolCall.id, result: 'Unknown tool', isError: true }
+}
+
+// Create adapter with tools
+const adapter = createClaudeAdapter({
+  apiKey: process.env.ANTHROPIC_API_KEY,
   tools: [
     {
       name: 'search',
-      description: 'Search the web',
-      inputSchema: {
+      description: 'Search the web for information',
+      input_schema: {
         type: 'object',
         properties: {
-          query: { type: 'string' },
+          query: { type: 'string', description: 'Search query' },
         },
+        required: ['query'],
       },
     },
   ],
-  onToolCall: async (toolCall) => {
-    if (toolCall.name === 'search') {
-      const results = await searchWeb(toolCall.input.query)
-      return { results }
-    }
-  },
 })
+
+// In your component, pass toolExecutor when sending messages
+// The adapter will automatically execute tools and loop until complete
+const chat = useChat({ adapter })
 ```
+
+Note: The adapter handles the full tool execution loop internally. When a tool call is made, `toolExecutor` is called, the result is sent back to the model, and this continues until the model responds without tool calls.
 
 ## Contributing
 

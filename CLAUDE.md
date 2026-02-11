@@ -44,6 +44,8 @@
 │   ├── permissions.ts      # Tool permission system
 │   ├── types.ts            # All TypeScript types
 │   ├── utils.ts            # Utilities (generateId, parseSSEStream)
+│   ├── utils/
+│   │   └── markdown.tsx    # Shared markdown renderer
 │   ├── styles.css          # Base styles (CSS variables)
 │   └── index.ts            # Main exports
 ├── docs/                   # Demo landing page (Vercel)
@@ -70,14 +72,27 @@ interface ChatAdapter {
   }
   sendMessage(
     messages: ChatMessage[],
-    options?: {
-      onStream?: (chunk: string) => void
-      onThinking?: (thinking: string) => void
-      onToolCall?: (toolCall: ToolCall) => void
-      signal?: AbortSignal
-    }
+    options?: SendMessageOptions
   ): Promise<ChatMessage>
 }
+
+interface SendMessageOptions {
+  onStream?: (chunk: string) => void
+  onThinking?: (thinking: string) => void
+  onToolCall?: (toolCall: ToolCall) => void
+  toolExecutor?: ToolExecutor  // For agentic tool execution loop
+  signal?: AbortSignal
+  maxIterations?: number  // Max tool execution rounds (default: 10)
+}
+```
+
+### Tool Execution Loop
+
+When `toolExecutor` is provided, adapters (like Claude) will:
+1. Make API call
+2. If tool calls returned, execute via `toolExecutor`
+3. Send results back to model
+4. Loop until no more tool calls or maxIterations reached
 ```
 
 ### Streaming Event Parsing
@@ -144,6 +159,24 @@ User sends message
   → Message added to messages array
   → thinkingText cleared
 ```
+
+### useChat Features
+
+The `useChat` hook provides:
+- **Conversation persistence**: `conversationStore` option auto-saves messages
+- **Error handling**: `error` state with `clearError()` method
+- **Retry/regenerate**: `retry()` re-sends last message, `regenerate()` removes last response and re-sends
+- **Adapter features**: `adapterFeatures` exposes `{ streaming, thinking, toolUse }`
+- **Permission system**: `toolRegistry` + `permissionConfig` for tool approval flow
+
+### Permission System Integration
+
+When `toolExecutor`, `toolRegistry`, and `permissionConfig` are provided:
+1. Tool call comes in from adapter
+2. Check permission via `getEffectivePermission()`
+3. If 'deny' → return error result
+4. If 'confirm' → show ApprovalCard, wait for user
+5. If 'auto'/'notify' → execute immediately
 
 ## Demo Site (docs/)
 
