@@ -262,6 +262,101 @@
   line-height: 1.6;
 }
 
+/* Markdown content styles */
+.chat-md-content {
+  font-size: 14px;
+}
+
+.chat-md-content .chat-md-h1 {
+  font-size: 1.75em;
+  font-weight: 700;
+  margin: 0.5em 0 0.25em;
+  line-height: 1.3;
+  border-bottom: 1px solid var(--chat-border);
+  padding-bottom: 0.3em;
+}
+
+.chat-md-content .chat-md-h2 {
+  font-size: 1.4em;
+  font-weight: 600;
+  margin: 0.75em 0 0.25em;
+  line-height: 1.35;
+  border-bottom: 1px solid var(--chat-border);
+  padding-bottom: 0.25em;
+}
+
+.chat-md-content .chat-md-h3 {
+  font-size: 1.2em;
+  font-weight: 600;
+  margin: 0.75em 0 0.25em;
+  line-height: 1.4;
+}
+
+.chat-md-content .chat-md-h4,
+.chat-md-content .chat-md-h5,
+.chat-md-content .chat-md-h6 {
+  font-size: 1em;
+  font-weight: 600;
+  margin: 0.5em 0 0.25em;
+}
+
+.chat-md-content .chat-md-p {
+  margin: 0.5em 0;
+}
+
+.chat-md-content .chat-md-ul,
+.chat-md-content .chat-md-ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+.chat-md-content .chat-md-ul li,
+.chat-md-content .chat-md-ol li {
+  margin: 0.25em 0;
+}
+
+.chat-md-content .chat-md-blockquote {
+  border-left: 3px solid var(--chat-accent);
+  padding-left: 1em;
+  margin: 0.5em 0;
+  color: var(--chat-text-secondary);
+}
+
+.chat-md-content .chat-md-code-block {
+  background: var(--chat-surface);
+  border: 1px solid var(--chat-border);
+  border-radius: 6px;
+  padding: 12px;
+  margin: 0.75em 0;
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.chat-md-content .chat-md-inline-code {
+  background: var(--chat-surface);
+  border: 1px solid var(--chat-border);
+  border-radius: 4px;
+  padding: 0.15em 0.4em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.chat-md-content .chat-md-link {
+  color: var(--chat-accent);
+  text-decoration: none;
+}
+
+.chat-md-content .chat-md-link:hover {
+  text-decoration: underline;
+}
+
+.chat-md-content .chat-md-hr {
+  border: none;
+  border-top: 1px solid var(--chat-border);
+  margin: 1em 0;
+}
+
 .chat-artifact-image {
   display: flex;
   justify-content: center;

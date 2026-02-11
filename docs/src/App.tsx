@@ -36,10 +36,11 @@ import {
   ApprovalCard,
   DiffView,
   QuestionCard,
-  ArtifactPanel as LibraryArtifactPanel,
+  useChat,
 } from '@vith-ai/chat-ui'
 import type {
   ChatMessage,
+  ChatAdapter,
   ToolCall,
   TaskItem,
   ApprovalRequest,
@@ -371,6 +372,103 @@ Built-in support for:
     content: "This demo showcases all the agentic UI components. Available commands:\n\n• **\"analyze data\"** → Tool calls, tasks, thinking, charts\n• **\"write code\"** → Syntax-highlighted code artifact\n• **\"spreadsheet\"** → Interactive spreadsheet viewer\n• **\"pdf\"** or **\"report\"** → PDF document viewer\n• **\"search\"** → Web search with multiple tools\n• **\"build\"** → Multi-step task progress\n• **\"image\"** → Image generation artifact\n• **\"deploy\"** → Approval flow\n• **\"refactor\"** → Diff view\n• **\"configure\"** → Question cards\n\nEach response demonstrates different agentic UI patterns. Check out the **Docs** to learn how to integrate these into your app.",
   },
 }
+
+// Helper for delays
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+// Mock adapter that simulates real LLM streaming behavior
+// This dogfoods the library's useChat hook with exact adapter callback patterns
+function createMockAdapter(): ChatAdapter {
+  return {
+    providerName: 'Demo',
+    features: { streaming: true, thinking: true, toolUse: true },
+
+    async sendMessage(messages, options) {
+      const lastMessage = messages[messages.length - 1]
+      const userInput = lastMessage?.content.toLowerCase() || ''
+
+      // Determine response based on input
+      let responseKey = 'default'
+      if (userInput.includes('analyz') || userInput.includes('visual') || userInput.includes('chart')) {
+        responseKey = 'analyze'
+      } else if (userInput.includes('code') || userInput.includes('component') || userInput.includes('button') || userInput.includes('function') || userInput.includes('write')) {
+        responseKey = 'code'
+      } else if (userInput.includes('spreadsheet') || userInput.includes('excel') || userInput.includes('financial') || userInput.includes('model')) {
+        responseKey = 'spreadsheet'
+      } else if (userInput.includes('search') || userInput.includes('find') || userInput.includes('look up') || userInput.includes('research')) {
+        responseKey = 'search'
+      } else if (userInput.includes('build') || userInput.includes('compile') || userInput.includes('test')) {
+        responseKey = 'build'
+      } else if (userInput.includes('image') || userInput.includes('picture') || userInput.includes('photo') || userInput.includes('generate')) {
+        responseKey = 'image'
+      } else if (userInput.includes('pdf') || userInput.includes('report') || userInput.includes('document')) {
+        responseKey = 'pdf'
+      } else if (userInput.includes('deploy') || userInput.includes('production') || userInput.includes('release')) {
+        responseKey = 'deploy'
+      } else if (userInput.includes('refactor') || userInput.includes('diff') || userInput.includes('change')) {
+        responseKey = 'refactor'
+      } else if (userInput.includes('config') || userInput.includes('question') || userInput.includes('setup') || userInput.includes('database')) {
+        responseKey = 'question'
+      } else if (userInput.includes('help') || userInput.includes('what can') || userInput.includes('demo')) {
+        responseKey = 'help'
+      }
+
+      const response = demoResponses[responseKey]
+
+      // Simulate tool calls via onToolCall callback
+      if (response.toolCalls) {
+        for (let i = 0; i < response.toolCalls.length; i++) {
+          const tc = response.toolCalls[i]
+          // First emit as running
+          options?.onToolCall?.({ ...tc, status: 'running' })
+          await delay(600)
+          // Then emit as complete
+          options?.onToolCall?.({ ...tc, status: 'complete' })
+          await delay(200)
+        }
+      }
+
+      // Simulate thinking via onThinking callback
+      if (response.thinking) {
+        const thinkingWords = response.thinking.split(' ')
+        let accumulated = ''
+        for (const word of thinkingWords) {
+          accumulated += (accumulated ? ' ' : '') + word
+          options?.onThinking?.(accumulated)
+          await delay(30)
+        }
+        await delay(200)
+      }
+
+      // Simulate content streaming via onStream callback
+      const words = response.content.split(' ')
+      for (const word of words) {
+        options?.onStream?.(word + ' ')
+        await delay(25)
+      }
+
+      // Return final response with all demo fields
+      // Cast to DemoMessage for demo-specific fields (tasks, approval, question, diff, artifact)
+      return {
+        id: Date.now().toString(),
+        role: 'assistant' as const,
+        content: response.content,
+        toolCalls: response.toolCalls,
+        artifacts: response.artifact ? [response.artifact] : undefined,
+        thinking: response.thinking,
+        // Demo-specific fields (extends ChatMessage)
+        tasks: response.tasks,
+        approval: response.approval,
+        question: response.question,
+        diff: response.diff,
+        artifact: response.artifact,
+      } as DemoMessage
+    },
+  }
+}
+
+// Create singleton mock adapter
+const mockAdapter = createMockAdapter()
 
 // Artifact renderers (demo-specific - library provides ArtifactRegistry for type detection)
 // Rich Spreadsheet Viewer
@@ -841,11 +939,28 @@ function ChatDemo() {
   })
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
-  const [messages, setMessages] = useState<DemoMessage[]>([])
-  const [input, setInput] = useState('')
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [streamingThinking, setStreamingThinking] = useState('')
   const [currentArtifact, setCurrentArtifact] = useState<Artifact | null>(null)
+  const [input, setInput] = useState('')
+
+  // Use the library's useChat hook with mock adapter - this dogfoods the streaming logic
+  const {
+    messages,
+    isProcessing,
+    thinkingText: streamingThinking,
+    sendMessage: sendChatMessage,
+    setMessages,
+    stopProcessing,
+  } = useChat({
+    adapter: mockAdapter,
+    initialMessages: [WELCOME_MESSAGE as ChatMessage],
+    onResponse: (response) => {
+      // Auto-show artifact panel when response has artifacts
+      if (response.artifacts?.length) {
+        setCurrentArtifact(response.artifacts[0])
+        setShowArtifactPanel(true)
+      }
+    },
+  })
   const [showArtifactPanel, setShowArtifactPanel] = useState(true)
   const [showConversationList, setShowConversationList] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -892,14 +1007,14 @@ function ChatDemo() {
   const createNewConversation = () => {
     // Start fresh with no conversation ID - it will be created on first message
     setCurrentConversationId(null)
-    setMessages([])
+    setMessages([WELCOME_MESSAGE as ChatMessage])
     setCurrentArtifact(null)
     setShowConversationList(false)
   }
 
   const loadConversation = (conv: Conversation) => {
     setCurrentConversationId(conv.id)
-    setMessages(conv.messages)
+    setMessages(conv.messages as ChatMessage[])
     setCurrentArtifact(null)
     setShowConversationList(false)
   }
@@ -909,7 +1024,7 @@ function ChatDemo() {
     setConversations(prev => prev.filter(c => c.id !== convId))
     if (currentConversationId === convId) {
       setCurrentConversationId(null)
-      setMessages([WELCOME_MESSAGE])
+      setMessages([WELCOME_MESSAGE as ChatMessage])
     }
   }
 
@@ -923,9 +1038,9 @@ function ChatDemo() {
 
   const handleApproval = (messageId: string, approved: boolean) => {
     // Remove the approval from the message (it's been handled)
-    setMessages(prev => prev.map(msg => {
+    setMessages((prev: ChatMessage[]) => prev.map((msg: ChatMessage) => {
       if (msg.id === messageId) {
-        return { ...msg, approval: undefined }
+        return { ...msg, approval: undefined } as ChatMessage
       }
       return msg
     }))
@@ -937,14 +1052,14 @@ function ChatDemo() {
         ? "Deployment approved! Starting deployment to production...\n\n✓ Building application\n✓ Running migrations\n✓ Deploying to production\n\n🚀 Successfully deployed v2.1.0"
         : "Deployment cancelled. No changes were made to production.",
     }
-    setTimeout(() => setMessages(prev => [...prev, followUp]), 500)
+    setTimeout(() => setMessages((prev: ChatMessage[]) => [...prev, followUp as ChatMessage]), 500)
   }
 
   const handleQuestion = (messageId: string, answer: string) => {
     // Remove the question from the message
-    setMessages(prev => prev.map(msg => {
+    setMessages((prev: ChatMessage[]) => prev.map((msg: ChatMessage) => {
       if (msg.id === messageId) {
-        return { ...msg, question: undefined }
+        return { ...msg, question: undefined } as ChatMessage
       }
       return msg
     }))
@@ -963,11 +1078,12 @@ function ChatDemo() {
       ],
     }
     setTimeout(() => {
-      setMessages(prev => [...prev, userAnswer])
-      setTimeout(() => setMessages(prev => [...prev, followUp]), 800)
+      setMessages((prev: ChatMessage[]) => [...prev, userAnswer as ChatMessage])
+      setTimeout(() => setMessages((prev: ChatMessage[]) => [...prev, followUp as ChatMessage]), 800)
     }, 300)
   }
 
+  // handleSend now delegates to useChat's sendMessage - the mock adapter handles streaming
   const handleSend = async () => {
     if (!input.trim() || isProcessing) return
 
@@ -976,7 +1092,7 @@ function ChatDemo() {
       const newConv: Conversation = {
         id: Date.now().toString(),
         title: input.slice(0, 30) + (input.length > 30 ? '...' : ''),
-        messages: [...messages],
+        messages: [...messages] as DemoMessage[],
         createdAt: Date.now(),
       }
       setConversations(prev => [newConv, ...prev])
@@ -990,170 +1106,16 @@ function ChatDemo() {
       ))
     }
 
-    const userMessage: DemoMessage = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: input,
-    }
-
-    setMessages(prev => [...prev, userMessage])
-    const userInput = input.toLowerCase()
+    const userInput = input
     setInput('')
-    setIsProcessing(true)
-    setStreamingThinking('') // Reset streaming thinking state
 
-    // Determine response based on input
-    let responseKey = 'default'
-    if (userInput.includes('analyz') || userInput.includes('visual') || userInput.includes('chart')) {
-      responseKey = 'analyze'
-    } else if (userInput.includes('code') || userInput.includes('component') || userInput.includes('button') || userInput.includes('function') || userInput.includes('write')) {
-      responseKey = 'code'
-    } else if (userInput.includes('spreadsheet') || userInput.includes('excel') || userInput.includes('financial') || userInput.includes('model')) {
-      responseKey = 'spreadsheet'
-    } else if (userInput.includes('search') || userInput.includes('find') || userInput.includes('look up') || userInput.includes('research')) {
-      responseKey = 'search'
-    } else if (userInput.includes('build') || userInput.includes('compile') || userInput.includes('test')) {
-      responseKey = 'build'
-    } else if (userInput.includes('image') || userInput.includes('picture') || userInput.includes('photo') || userInput.includes('generate')) {
-      responseKey = 'image'
-    } else if (userInput.includes('pdf') || userInput.includes('report') || userInput.includes('document')) {
-      responseKey = 'pdf'
-    } else if (userInput.includes('deploy') || userInput.includes('production') || userInput.includes('release')) {
-      responseKey = 'deploy'
-    } else if (userInput.includes('refactor') || userInput.includes('diff') || userInput.includes('change')) {
-      responseKey = 'refactor'
-    } else if (userInput.includes('config') || userInput.includes('question') || userInput.includes('setup') || userInput.includes('database')) {
-      responseKey = 'question'
-    } else if (userInput.includes('help') || userInput.includes('what can') || userInput.includes('demo')) {
-      responseKey = 'help'
-    }
-
-    const response = demoResponses[responseKey]
-
-    // Simulate processing with tool calls
-    if (response.toolCalls) {
-      // Show running tools
-      const runningMessage: DemoMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: '',
-        toolCalls: response.toolCalls.map((t, i) => ({
-          ...t,
-          status: i === 0 ? 'running' : 'pending',
-        })),
-      }
-      setMessages(prev => [...prev, runningMessage])
-
-      // Simulate tool completion
-      for (let i = 0; i < response.toolCalls.length; i++) {
-        await new Promise(resolve => setTimeout(resolve, 800))
-        setMessages(prev => {
-          const updated = [...prev]
-          const lastMsg = updated[updated.length - 1]
-          if (lastMsg.toolCalls) {
-            lastMsg.toolCalls = lastMsg.toolCalls.map((t, j) => ({
-              ...t,
-              status: j <= i ? 'complete' : j === i + 1 ? 'running' : 'pending',
-            }))
-          }
-          return updated
-        })
-      }
-
-      await new Promise(resolve => setTimeout(resolve, 300))
-
-      // Stream thinking first (if present)
-      if (response.thinking) {
-        setMessages(prev => {
-          const updated = [...prev]
-          const lastMsg = updated[updated.length - 1]
-          lastMsg.thinking = ''
-          return [...updated]
-        })
-
-        const thinkingWords = response.thinking.split(' ')
-        for (let i = 0; i < thinkingWords.length; i++) {
-          await new Promise(resolve => setTimeout(resolve, 30))
-          setMessages(prev => {
-            const updated = [...prev]
-            const lastMsg = updated[updated.length - 1]
-            lastMsg.thinking = thinkingWords.slice(0, i + 1).join(' ')
-            return [...updated]
-          })
-        }
-        await new Promise(resolve => setTimeout(resolve, 200))
-      }
-
-      // Stream content word by word
-      const words = response.content.split(' ')
-      for (let i = 0; i < words.length; i++) {
-        await new Promise(resolve => setTimeout(resolve, 25))
-        setMessages(prev => {
-          const updated = [...prev]
-          const lastMsg = updated[updated.length - 1]
-          lastMsg.content = words.slice(0, i + 1).join(' ')
-          return [...updated]
-        })
-      }
-
-      // Add remaining properties after streaming
-      setMessages(prev => {
-        const updated = [...prev]
-        const lastMsg = updated[updated.length - 1]
-        lastMsg.tasks = response.tasks
-        lastMsg.artifact = response.artifact
-        lastMsg.approval = response.approval
-        lastMsg.diff = response.diff
-        return [...updated]
-      })
-    } else {
-      // Simple response - model real library behavior:
-      // 1. Stream thinking FIRST (shown separately, not in a message)
-      // 2. Then create the assistant message with thinking already complete
-      // 3. Then stream the content
-
-      // Stream thinking separately (like library's thinkingText state)
-      if (response.thinking) {
-        const thinkingWords = response.thinking.split(' ')
-        for (let i = 0; i < thinkingWords.length; i++) {
-          await new Promise(resolve => setTimeout(resolve, 30))
-          setStreamingThinking(thinkingWords.slice(0, i + 1).join(' '))
-        }
-        await new Promise(resolve => setTimeout(resolve, 200))
-      }
-
-      // Now create the assistant message with thinking already populated
-      const assistantMessage: DemoMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: '',
-        thinking: response.thinking, // Thinking is complete, attached to message
-        artifact: response.artifact,
-        question: response.question,
-      }
-      setMessages(prev => [...prev, assistantMessage])
-      setStreamingThinking('') // Clear streaming state
-
-      // Stream content word by word
-      const words = response.content.split(' ')
-      for (let i = 0; i < words.length; i++) {
-        await new Promise(resolve => setTimeout(resolve, 25))
-        setMessages(prev => {
-          const updated = [...prev]
-          const lastMsg = updated[updated.length - 1]
-          lastMsg.content = words.slice(0, i + 1).join(' ')
-          return [...updated]
-        })
-      }
-    }
-
-    if (response.artifact) {
-      setCurrentArtifact(response.artifact)
-      setShowArtifactPanel(true) // Auto-show panel when artifact is generated
-    }
-
-    setIsProcessing(false)
-    setStreamingThinking('') // Ensure streaming state is cleared
+    // Let the useChat hook + mock adapter handle everything:
+    // - Adding user message to messages array
+    // - Streaming tool calls via onToolCall callback
+    // - Streaming thinking via onThinking callback
+    // - Streaming content via onStream callback
+    // - Adding final response with artifacts
+    await sendChatMessage(userInput)
   }
 
   return (
@@ -1287,10 +1249,7 @@ function ChatDemo() {
                       </button>
                       {isProcessing ? (
                         <button
-                          onClick={() => {
-                            setIsProcessing(false)
-                            setStreamingThinking('')
-                          }}
+                          onClick={stopProcessing}
                           className="px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors flex items-center gap-1.5 text-xs font-medium"
                         >
                           <Square className="w-3 h-3" />
@@ -1346,7 +1305,7 @@ function ChatDemo() {
             </>
           )}
 
-          {messages.map(message => (
+          {(messages as DemoMessage[]).map(message => (
             <div key={message.id}>
               {/* User messages render normally */}
               {message.role === 'user' && <MessageBubble message={message} />}
@@ -1456,10 +1415,7 @@ function ChatDemo() {
               />
               {isProcessing ? (
                 <button
-                  onClick={() => {
-                    setIsProcessing(false)
-                    setStreamingThinking('')
-                  }}
+                  onClick={stopProcessing}
                   className="p-3 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors"
                 >
                   <Square className="w-5 h-5" />

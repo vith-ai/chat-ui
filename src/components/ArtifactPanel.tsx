@@ -4,6 +4,171 @@ import { Code, FileText, Image, Table, File, X, ChevronLeft, ChevronRight } from
 import type { Artifact, ArtifactType } from '../types'
 
 /**
+ * Lightweight markdown renderer - handles essentials without external dependencies.
+ * Supports: headers, bold, italic, links, code, lists, blockquotes, horizontal rules.
+ */
+function renderMarkdown(content: string): React.ReactNode {
+  const lines = content.split('\n')
+  const elements: React.ReactNode[] = []
+  let i = 0
+  let key = 0
+
+  const processInline = (text: string): React.ReactNode[] => {
+    const result: React.ReactNode[] = []
+    let remaining = text
+    let inlineKey = 0
+
+    while (remaining.length > 0) {
+      // Code inline: `code`
+      const codeMatch = remaining.match(/^`([^`]+)`/)
+      if (codeMatch) {
+        result.push(<code key={inlineKey++} className="chat-md-inline-code">{codeMatch[1]}</code>)
+        remaining = remaining.slice(codeMatch[0].length)
+        continue
+      }
+
+      // Bold: **text** or __text__
+      const boldMatch = remaining.match(/^(\*\*|__)(.+?)\1/)
+      if (boldMatch) {
+        result.push(<strong key={inlineKey++}>{processInline(boldMatch[2])}</strong>)
+        remaining = remaining.slice(boldMatch[0].length)
+        continue
+      }
+
+      // Italic: *text* or _text_
+      const italicMatch = remaining.match(/^(\*|_)(.+?)\1/)
+      if (italicMatch) {
+        result.push(<em key={inlineKey++}>{processInline(italicMatch[2])}</em>)
+        remaining = remaining.slice(italicMatch[0].length)
+        continue
+      }
+
+      // Link: [text](url)
+      const linkMatch = remaining.match(/^\[([^\]]+)\]\(([^)]+)\)/)
+      if (linkMatch) {
+        result.push(
+          <a key={inlineKey++} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" className="chat-md-link">
+            {linkMatch[1]}
+          </a>
+        )
+        remaining = remaining.slice(linkMatch[0].length)
+        continue
+      }
+
+      // Plain text until next special character
+      const plainMatch = remaining.match(/^[^`*_\[]+/)
+      if (plainMatch) {
+        result.push(plainMatch[0])
+        remaining = remaining.slice(plainMatch[0].length)
+        continue
+      }
+
+      // Single special char that didn't match patterns
+      result.push(remaining[0])
+      remaining = remaining.slice(1)
+    }
+
+    return result
+  }
+
+  while (i < lines.length) {
+    const line = lines[i]
+
+    // Code block: ```
+    if (line.startsWith('```')) {
+      const lang = line.slice(3).trim()
+      const codeLines: string[] = []
+      i++
+      while (i < lines.length && !lines[i].startsWith('```')) {
+        codeLines.push(lines[i])
+        i++
+      }
+      elements.push(
+        <pre key={key++} className="chat-md-code-block" data-lang={lang || undefined}>
+          <code>{codeLines.join('\n')}</code>
+        </pre>
+      )
+      i++
+      continue
+    }
+
+    // Horizontal rule: ---, ***, ___
+    if (/^([-*_])\1{2,}$/.test(line.trim())) {
+      elements.push(<hr key={key++} className="chat-md-hr" />)
+      i++
+      continue
+    }
+
+    // Headers: # ## ### etc
+    const headerMatch = line.match(/^(#{1,6})\s+(.+)$/)
+    if (headerMatch) {
+      const level = headerMatch[1].length
+      const Tag = `h${level}` as keyof JSX.IntrinsicElements
+      elements.push(<Tag key={key++} className={`chat-md-h${level}`}>{processInline(headerMatch[2])}</Tag>)
+      i++
+      continue
+    }
+
+    // Blockquote: >
+    if (line.startsWith('>')) {
+      const quoteLines: string[] = []
+      while (i < lines.length && lines[i].startsWith('>')) {
+        quoteLines.push(lines[i].replace(/^>\s?/, ''))
+        i++
+      }
+      elements.push(
+        <blockquote key={key++} className="chat-md-blockquote">
+          {renderMarkdown(quoteLines.join('\n'))}
+        </blockquote>
+      )
+      continue
+    }
+
+    // Unordered list: - or *
+    if (/^[-*]\s/.test(line)) {
+      const listItems: string[] = []
+      while (i < lines.length && /^[-*]\s/.test(lines[i])) {
+        listItems.push(lines[i].replace(/^[-*]\s/, ''))
+        i++
+      }
+      elements.push(
+        <ul key={key++} className="chat-md-ul">
+          {listItems.map((item, idx) => <li key={idx}>{processInline(item)}</li>)}
+        </ul>
+      )
+      continue
+    }
+
+    // Ordered list: 1. 2. etc
+    if (/^\d+\.\s/.test(line)) {
+      const listItems: string[] = []
+      while (i < lines.length && /^\d+\.\s/.test(lines[i])) {
+        listItems.push(lines[i].replace(/^\d+\.\s/, ''))
+        i++
+      }
+      elements.push(
+        <ol key={key++} className="chat-md-ol">
+          {listItems.map((item, idx) => <li key={idx}>{processInline(item)}</li>)}
+        </ol>
+      )
+      continue
+    }
+
+    // Empty line
+    if (line.trim() === '') {
+      i++
+      continue
+    }
+
+    // Paragraph
+    elements.push(<p key={key++} className="chat-md-p">{processInline(line)}</p>)
+    i++
+  }
+
+  return elements
+}
+
+/**
  * ArtifactPanel - Display artifacts with built-in renderers
  *
  * BASIC USAGE (works out of the box):
@@ -22,7 +187,7 @@ import type { Artifact, ArtifactType } from '../types'
  *   - code: <pre><code> with basic styling
  *   - json: Pretty-printed JSON
  *   - csv: Basic HTML table
- *   - markdown: Plain text (override with react-markdown for rich rendering)
+ *   - markdown: Headers, bold, italic, links, lists, code blocks, blockquotes
  *   - image: Native <img> tag
  *   - html: Sandboxed iframe
  *   - text/unknown: Plain text display
@@ -125,17 +290,17 @@ const builtInRenderers: Record<ArtifactType, (artifact: Artifact) => React.React
   // Table: same as CSV
   table: (artifact) => builtInRenderers.csv(artifact),
 
-  // Document: plain text
+  // Document: rendered as markdown (documents often contain markdown formatting)
   document: (artifact) => (
-    <div className="chat-artifact-markdown">
-      <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{artifact.content}</pre>
+    <div className="chat-artifact-markdown chat-md-content">
+      {renderMarkdown(artifact.content)}
     </div>
   ),
 
-  // Markdown: plain text (override with react-markdown for rich rendering)
+  // Markdown: rendered with built-in lightweight parser
   markdown: (artifact) => (
-    <div className="chat-artifact-markdown">
-      <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{artifact.content}</pre>
+    <div className="chat-artifact-markdown chat-md-content">
+      {renderMarkdown(artifact.content)}
     </div>
   ),
 

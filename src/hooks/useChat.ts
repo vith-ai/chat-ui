@@ -40,6 +40,8 @@ export interface UseChatReturn {
   setPendingQuestion: (question: PendingQuestion | null) => void
   /** Clear messages */
   clearMessages: () => void
+  /** Replace all messages (for loading conversations) or update with function */
+  setMessages: (messages: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => void
 }
 
 export function useChat(options: UseChatOptions = {}): UseChatReturn {
@@ -64,6 +66,18 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     setPendingQuestion(null)
     setThinkingText('')
     streamingMessageIdRef.current = null
+  }, [])
+
+  const replaceMessages = useCallback((newMessages: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => {
+    if (typeof newMessages === 'function') {
+      setMessages(newMessages)
+    } else {
+      setMessages(newMessages)
+      setTasks([])
+      setPendingQuestion(null)
+      setThinkingText('')
+      streamingMessageIdRef.current = null
+    }
   }, [])
 
   const stopProcessing = useCallback(() => {
@@ -247,5 +261,6 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     setTasks,
     setPendingQuestion,
     clearMessages,
+    setMessages: replaceMessages,
   }
 }
