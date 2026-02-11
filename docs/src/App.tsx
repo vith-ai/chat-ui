@@ -963,6 +963,15 @@ function ChatDemo() {
     }
   }, [messages, currentConversationId])
 
+  // Auto-show artifact panel when a message has an artifact
+  useEffect(() => {
+    const lastMsg = messages[messages.length - 1] as DemoMessage
+    if (lastMsg?.artifact && lastMsg.artifact !== currentArtifact) {
+      setCurrentArtifact(lastMsg.artifact)
+      setShowArtifactPanel(true)
+    }
+  }, [messages, currentArtifact])
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -1115,7 +1124,7 @@ function ChatDemo() {
     )
   }
 
-  // Welcome message with suggestions
+  // Welcome message with clickable suggestion buttons
   const welcomeMessage = (
     <div className="text-center">
       <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center mb-3 mx-auto">
@@ -1125,8 +1134,20 @@ function ChatDemo() {
         Start a conversation
       </h2>
       <p className="text-xs mb-4" style={{ color: 'var(--chat-text-secondary)' }}>
-        Try: analyze, code, spreadsheet, search, build, deploy...
+        Try a command below
       </p>
+      <div className="flex flex-wrap justify-center gap-2 max-w-md mx-auto">
+        {['analyze', 'code', 'spreadsheet', 'pdf', 'search', 'build', 'image', 'deploy', 'refactor', 'configure'].map(cmd => (
+          <button
+            key={cmd}
+            onClick={() => handleSend(cmd)}
+            className="px-3 py-1.5 rounded-lg text-xs bg-surface-elevated border border-surface-border hover:border-accent/50 transition-colors"
+            style={{ color: 'var(--chat-text)' }}
+          >
+            {cmd}
+          </button>
+        ))}
+      </div>
     </div>
   )
 
