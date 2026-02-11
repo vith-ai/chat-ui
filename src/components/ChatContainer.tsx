@@ -7,6 +7,7 @@ import type {
   PendingQuestion,
   ToolCall,
   ChatTheme,
+  Artifact,
 } from '../types'
 import { MessageBubble } from './MessageBubble'
 import { ThinkingBox } from './ThinkingBox'
@@ -66,6 +67,10 @@ export interface ChatContainerProps {
   showInputHint?: boolean
   /** Render custom content after each message (for approvals, diffs, artifacts, etc.) */
   renderMessageExtras?: (message: ChatMessage, isStreaming: boolean) => React.ReactNode
+  /** Suggestion buttons shown in empty state - clicking sends the message */
+  suggestions?: string[]
+  /** Called when a message with an artifact is received */
+  onArtifact?: (artifact: Artifact) => void
 }
 
 export function ChatContainer({
@@ -89,6 +94,8 @@ export function ChatContainer({
   emptyStatePlaceholder,
   showInputHint,
   renderMessageExtras,
+  suggestions,
+  onArtifact,
 }: ChatContainerProps) {
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -135,6 +142,22 @@ export function ChatContainer({
       inputRef.current.style.height = Math.max(minHeight, Math.min(inputRef.current.scrollHeight, maxHeight)) + 'px'
     }
   }, [input, messages.length, emptyStateLayout])
+
+  // Track last seen artifact to avoid duplicate callbacks
+  const lastArtifactIdRef = useRef<string | null>(null)
+
+  // Detect new artifacts and call onArtifact
+  useEffect(() => {
+    if (!onArtifact) return
+    const lastMessage = messages[messages.length - 1]
+    if (lastMessage?.artifacts?.length) {
+      const latestArtifact = lastMessage.artifacts[lastMessage.artifacts.length - 1]
+      if (latestArtifact.id !== lastArtifactIdRef.current) {
+        lastArtifactIdRef.current = latestArtifact.id
+        onArtifact(latestArtifact)
+      }
+    }
+  }, [messages, onArtifact])
 
   // Apply theme as CSS variables
   const themeStyle = theme
@@ -286,6 +309,29 @@ export function ChatContainer({
     )
   }
 
+  // Render suggestion buttons
+  const renderSuggestions = () => {
+    if (!suggestions?.length) return null
+    return (
+      <div className="flex flex-wrap justify-center gap-2 mt-4">
+        {suggestions.map((suggestion) => (
+          <button
+            key={suggestion}
+            onClick={() => onSend?.(suggestion)}
+            className={clsx(
+              'px-3 py-1.5 rounded-lg text-xs',
+              'bg-[var(--chat-surface)] border border-[var(--chat-border)]',
+              'hover:border-[var(--chat-accent)]/50 transition-colors',
+              'text-[var(--chat-text)]'
+            )}
+          >
+            {suggestion}
+          </button>
+        ))}
+      </div>
+    )
+  }
+
   // Empty state with top-input layout
   if (messages.length === 0 && emptyStateLayout === 'top-input') {
     return (
@@ -299,12 +345,11 @@ export function ChatContainer({
         {/* Input at top */}
         {renderInput(true)}
 
-        {/* Welcome message centered in remaining space */}
-        {welcomeMessage && (
-          <div className="flex-1 flex flex-col items-center justify-center p-4">
-            {welcomeMessage}
-          </div>
-        )}
+        {/* Welcome message and suggestions centered in remaining space */}
+        <div className="flex-1 flex flex-col items-center justify-center p-4">
+          {welcomeMessage}
+          {renderSuggestions()}
+        </div>
       </div>
     )
   }
@@ -320,9 +365,10 @@ export function ChatContainer({
     >
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto chat-scrollbar">
-        {messages.length === 0 && welcomeMessage ? (
-          <div className="flex items-center justify-center h-full p-8">
+        {messages.length === 0 && (welcomeMessage || suggestions?.length) ? (
+          <div className="flex flex-col items-center justify-center h-full p-8">
             {welcomeMessage}
+            {renderSuggestions()}
           </div>
         ) : (
           <div className={clsx('py-4', centered && 'max-w-3xl mx-auto')}>

@@ -44,11 +44,10 @@ import type {
 // Import the library styles
 import '@vith-ai/chat-ui/styles.css'
 
-// Extended message type for demo
+// Extended message type for demo (extends ChatMessage which has artifacts: Artifact[])
 interface DemoMessage extends Omit<ChatMessage, 'toolCalls'> {
   toolCalls?: ToolCall[]
   tasks?: TaskItem[]
-  artifact?: Artifact
   approval?: ApprovalRequest
   question?: PendingQuestion
   diff?: FileChange
@@ -60,7 +59,7 @@ interface DemoResponse {
   thinking?: string
   toolCalls?: ToolCall[]
   tasks?: TaskItem[]
-  artifact?: Artifact
+  artifacts?: Artifact[]
   approval?: ApprovalRequest
   question?: PendingQuestion
   diff?: FileChange
@@ -82,7 +81,7 @@ const demoResponses: Record<string, DemoResponse> = {
       { id: 'task2', label: 'Analyze structure', status: 'completed' },
       { id: 'task3', label: 'Generate chart', status: 'completed' },
     ],
-    artifact: {
+    artifacts: [{
       id: 'chart1',
       type: 'chart',
       title: 'Revenue Trends',
@@ -98,7 +97,7 @@ Jun  █████████████████████████
 📈 Growth: +97.8% over 6 months
 📊 Average: $68,333/month
 🎯 Trend: Strong upward trajectory`,
-    },
+    }],
   },
   code: {
     content: "Here's a React component that implements the feature you requested.",
@@ -106,7 +105,7 @@ Jun  █████████████████████████
     toolCalls: [
       { id: 't1', name: 'write_file', input: { path: 'src/Button.tsx' }, status: 'complete' },
     ],
-    artifact: {
+    artifacts: [{
       id: 'code1',
       type: 'code',
       title: 'Button.tsx',
@@ -149,7 +148,7 @@ export function Button({
     </button>
   )
 }`,
-    },
+    }],
   },
   deploy: {
     content: "I'm ready to deploy. This will push to production and run database migrations.",
@@ -192,7 +191,7 @@ export async function login(credentials: Credentials) {
   return validateToken(token)
 }`,
     },
-    artifact: {
+    artifacts: [{
       id: 'refactor1',
       type: 'code',
       title: 'utils.ts (new)',
@@ -209,7 +208,7 @@ export async function refreshSession(token: string) {
     expiresIn: '7d'
   })
 }`,
-    },
+    }],
   },
   question: {
     content: "I found multiple configuration options. Which approach would you prefer?",
@@ -237,7 +236,7 @@ export async function refreshSession(token: string) {
       { id: 'task3', label: 'Calculate expenses', status: 'completed' },
       { id: 'task4', label: 'Generate cash flow', status: 'completed' },
     ],
-    artifact: {
+    artifacts: [{
       id: 'spreadsheet1',
       type: 'spreadsheet',
       title: 'Financial Model Q1-Q4',
@@ -253,7 +252,7 @@ export async function refreshSession(token: string) {
           ['Total', 383000, 222000, 161000, '42.0%'],
         ],
       }),
-    },
+    }],
   },
   search: {
     content: "I searched for the latest information and found several relevant sources. Here's a summary of what I found.",
@@ -263,7 +262,7 @@ export async function refreshSession(token: string) {
       { id: 't2', name: 'fetch_url', input: { url: 'https://react.dev/blog' }, status: 'complete' },
       { id: 't3', name: 'fetch_url', input: { url: 'https://github.com/facebook/react' }, status: 'complete' },
     ],
-    artifact: {
+    artifacts: [{
       id: 'search1',
       type: 'document',
       title: 'Search Results Summary',
@@ -294,7 +293,7 @@ Built-in support for:
 
 ---
 *Sources: react.dev, GitHub, React RFC discussions*`,
-    },
+    }],
   },
   build: {
     content: "Starting the build process. I'll compile the code, run tests, and generate the production bundle.",
@@ -313,7 +312,7 @@ Built-in support for:
       { id: 'task5', label: 'Generate source maps', status: 'completed' },
       { id: 'task6', label: 'Optimize assets', status: 'completed' },
     ],
-    artifact: {
+    artifacts: [{
       id: 'build1',
       type: 'document',
       title: 'Build Output',
@@ -333,7 +332,7 @@ Built-in support for:
 ✅ All 47 tests passed
 ✅ No TypeScript errors
 ✅ No linting warnings`,
-    },
+    }],
   },
   image: {
     content: "I've generated an image based on your description. Here's a beautiful mountain landscape at sunset.",
@@ -341,12 +340,12 @@ Built-in support for:
     toolCalls: [
       { id: 't1', name: 'generate_image', input: { prompt: 'mountain landscape at sunset, dramatic lighting' }, status: 'complete' },
     ],
-    artifact: {
+    artifacts: [{
       id: 'image1',
       type: 'image',
       title: 'Generated Landscape',
       content: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80',
-    },
+    }],
   },
   pdf: {
     content: "I've generated the quarterly report as a PDF. You can view it in the artifact panel.",
@@ -354,12 +353,12 @@ Built-in support for:
     toolCalls: [
       { id: 't1', name: 'generate_pdf', input: { template: 'quarterly_report', quarter: 'Q4' }, status: 'complete' },
     ],
-    artifact: {
+    artifacts: [{
       id: 'pdf1',
       type: 'pdf',
       title: 'Q4 2024 Report.pdf',
       content: 'quarterly-report.pdf',
-    },
+    }],
   },
   help: {
     content: "This demo showcases all the agentic UI components. Available commands:\n\n• **\"analyze data\"** → Tool calls, tasks, thinking, charts\n• **\"write code\"** → Syntax-highlighted code artifact\n• **\"spreadsheet\"** → Interactive spreadsheet viewer\n• **\"pdf\"** or **\"report\"** → PDF document viewer\n• **\"search\"** → Web search with multiple tools\n• **\"build\"** → Multi-step task progress\n• **\"image\"** → Image generation artifact\n• **\"deploy\"** → Approval flow\n• **\"refactor\"** → Diff view\n• **\"configure\"** → Question cards\n\nEach response demonstrates different agentic UI patterns. Check out the **Docs** to learn how to integrate these into your app.",
@@ -445,7 +444,7 @@ function createMockAdapter(): ChatAdapter {
         toolCalls: response.toolCalls,
         // Demo-specific fields stored on message
         tasks: response.tasks,
-        artifact: response.artifact,
+        artifacts: response.artifacts,
         approval: response.approval,
         question: response.question,
         diff: response.diff,
@@ -963,15 +962,6 @@ function ChatDemo() {
     }
   }, [messages, currentConversationId])
 
-  // Auto-show artifact panel when a message has an artifact
-  useEffect(() => {
-    const lastMsg = messages[messages.length - 1] as DemoMessage
-    if (lastMsg?.artifact && lastMsg.artifact !== currentArtifact) {
-      setCurrentArtifact(lastMsg.artifact)
-      setShowArtifactPanel(true)
-    }
-  }, [messages, currentArtifact])
-
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -1105,18 +1095,18 @@ function ChatDemo() {
         )}
 
         {/* Artifact button */}
-        {demoMsg.artifact && !isStreaming && (
+        {demoMsg.artifacts?.[0] && !isStreaming && (
           <motion.button
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             onClick={() => {
-              setCurrentArtifact(demoMsg.artifact!)
+              setCurrentArtifact(demoMsg.artifacts![0])
               setShowArtifactPanel(true)
             }}
             className="mx-4 mb-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-accent/10 border border-accent/20 text-accent text-sm hover:bg-accent/20 transition-colors"
           >
             <Sparkles className="w-4 h-4" />
-            <span>View {demoMsg.artifact.type}: {demoMsg.artifact.title}</span>
+            <span>View {demoMsg.artifacts[0].type}: {demoMsg.artifacts[0].title}</span>
             <PanelRight className="w-4 h-4 ml-auto" />
           </motion.button>
         )}
@@ -1124,7 +1114,7 @@ function ChatDemo() {
     )
   }
 
-  // Welcome message with clickable suggestion buttons
+  // Welcome message (suggestion buttons are handled by ChatContainer's suggestions prop)
   const welcomeMessage = (
     <div className="text-center">
       <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center mb-3 mx-auto">
@@ -1133,23 +1123,17 @@ function ChatDemo() {
       <h2 className="text-sm font-medium mb-1" style={{ color: 'var(--chat-text)' }}>
         Start a conversation
       </h2>
-      <p className="text-xs mb-4" style={{ color: 'var(--chat-text-secondary)' }}>
+      <p className="text-xs" style={{ color: 'var(--chat-text-secondary)' }}>
         Try a command below
       </p>
-      <div className="flex flex-wrap justify-center gap-2 max-w-md mx-auto">
-        {['analyze', 'code', 'spreadsheet', 'pdf', 'search', 'build', 'image', 'deploy', 'refactor', 'configure'].map(cmd => (
-          <button
-            key={cmd}
-            onClick={() => handleSend(cmd)}
-            className="px-3 py-1.5 rounded-lg text-xs bg-surface-elevated border border-surface-border hover:border-accent/50 transition-colors"
-            style={{ color: 'var(--chat-text)' }}
-          >
-            {cmd}
-          </button>
-        ))}
-      </div>
     </div>
   )
+
+  // Handle artifact from ChatContainer
+  const handleArtifact = (artifact: Artifact) => {
+    setCurrentArtifact(artifact)
+    setShowArtifactPanel(true)
+  }
 
   return (
     <div className="flex-1 flex min-h-0">
@@ -1259,9 +1243,10 @@ function ChatDemo() {
           onSend={handleSend}
           onStop={stopProcessing}
           onAnswerQuestion={handleAnswerQuestion}
+          onArtifact={handleArtifact}
+          suggestions={['analyze', 'code', 'spreadsheet', 'pdf', 'search', 'build', 'image', 'deploy', 'refactor', 'configure']}
           emptyStateLayout="top-input"
-          emptyStatePlaceholder="Try: analyze, code, spreadsheet, search, build, deploy..."
-          placeholder="Try: analyze, code, spreadsheet, search, build, deploy..."
+          placeholder="Type a message..."
           welcomeMessage={welcomeMessage}
           centered={!showArtifactPanel}
           renderMessageExtras={renderMessageExtras}
