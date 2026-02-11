@@ -1438,7 +1438,8 @@ function QuickStartSection() {
 
       <div>
         <h2 className="text-lg font-semibold mb-3">1. Install</h2>
-        <CodeBlock code="npm install @vith-ai/chat-ui" language="bash" />
+        <p className="text-sm text-[color:var(--chat-text-secondary)] mb-2">Coming soon to npm. For now, clone the repo.</p>
+        <CodeBlock code="git clone https://github.com/vith-ai/chat-ui.git" language="bash" />
       </div>
 
       <div>
@@ -1500,11 +1501,9 @@ function InstallationSection() {
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold mb-3">Package Manager</h2>
-        <div className="space-y-2">
-          <CodeBlock code="npm install @vith-ai/chat-ui" language="bash" title="npm" />
-          <CodeBlock code="pnpm add @vith-ai/chat-ui" language="bash" title="pnpm" />
-        </div>
+        <h2 className="text-lg font-semibold mb-3">Installation</h2>
+        <p className="text-sm text-[color:var(--chat-text-secondary)] mb-2">Coming soon to npm. For now:</p>
+        <CodeBlock code="git clone https://github.com/vith-ai/chat-ui.git" language="bash" />
       </div>
 
       <div>
