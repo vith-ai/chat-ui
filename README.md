@@ -87,9 +87,12 @@ const adapter = createClaudeAdapter({
   apiKey: 'sk-ant-...',
   model: 'claude-sonnet-4-20250514',  // or claude-3-opus, claude-3-haiku
   maxTokens: 4096,
-  enableThinking: true,  // Enable extended thinking (Claude only)
+  enableThinking: true,  // Enable extended thinking (requires streaming)
+  thinkingBudget: 10000, // Max tokens for thinking (optional)
   systemPrompt: 'You are a helpful assistant.',
 })
+// Note: Extended thinking requires Claude models that support it.
+// The thinking content is streamed via onThinking callback.
 ```
 
 ### OpenAI
@@ -314,6 +317,9 @@ import {
 
 ```tsx
 // ThinkingBox - collapsible reasoning display
+// NOTE: Thinking requires the AI provider to support extended thinking
+// (e.g., Claude with enableThinking: true) AND stream thinking deltas.
+// The library displays thinking content but cannot generate it.
 <ThinkingBox
   thinking={text}
   isStreaming={true}       // Show streaming indicator
