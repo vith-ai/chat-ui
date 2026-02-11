@@ -1,12 +1,23 @@
-import { useState, useCallback, useRef } from 'react'
-import type { ChatMessage, TaskItem, PendingQuestion, ApprovalRequest, FileChange, Artifact, ChatAdapter, ToolCall } from '../types'
+import { useState, useCallback, useRef, useEffect } from 'react'
+import type { ChatMessage, TaskItem, PendingQuestion, ApprovalRequest, FileChange, Artifact, ChatAdapter, ToolCall, ConversationStore, Conversation } from '../types'
 import { generateId } from '../utils'
 
 export interface UseChatOptions {
-  /** Initial messages */
+  /** Initial messages (ignored if conversationStore is provided) */
   initialMessages?: ChatMessage[]
   /** Chat adapter for making API calls */
   adapter?: ChatAdapter
+  /**
+   * Conversation store for auto-persistence. When provided:
+   * - Messages are automatically saved after each change
+   * - Conversations can be created, switched, and deleted
+   * - Messages are loaded when switching conversations
+   */
+  conversationStore?: ConversationStore
+  /** Auto-generate conversation title from first message (default: true) */
+  autoTitle?: boolean
+  /** Maximum title length for auto-generated titles (default: 50) */
+  maxTitleLength?: number
   /** Called when a message is sent */
   onSend?: (message: ChatMessage) => void
   /** Called when a response is received */
@@ -56,10 +67,36 @@ export interface UseChatReturn {
   clearMessages: () => void
   /** Replace all messages (for loading conversations) or update with function */
   setMessages: (messages: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => void
+
+  // ============ Conversation Management (only available when conversationStore is provided) ============
+
+  /** All conversations (empty array if no conversationStore) */
+  conversations: Conversation[]
+  /** Currently active conversation (null if no conversationStore or no active conversation) */
+  currentConversation: Conversation | null
+  /** Whether conversations are loading */
+  isLoadingConversations: boolean
+  /** Create a new conversation and switch to it */
+  createConversation: (title?: string) => Promise<Conversation | null>
+  /** Switch to a different conversation */
+  selectConversation: (id: string) => Promise<void>
+  /** Rename a conversation */
+  renameConversation: (id: string, title: string) => Promise<void>
+  /** Delete a conversation */
+  deleteConversation: (id: string) => Promise<void>
 }
 
 export function useChat(options: UseChatOptions = {}): UseChatReturn {
-  const { initialMessages = [], adapter, onSend, onResponse, onError } = options
+  const {
+    initialMessages = [],
+    adapter,
+    conversationStore,
+    autoTitle = true,
+    maxTitleLength = 50,
+    onSend,
+    onResponse,
+    onError,
+  } = options
 
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -70,8 +107,87 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   const [diffs, setDiffs] = useState<FileChange[]>([])
   const [artifacts, setArtifacts] = useState<Artifact[]>([])
 
+  // Conversation management state
+  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
+  const [isLoadingConversations, setIsLoadingConversations] = useState(!!conversationStore)
+
   const abortControllerRef = useRef<AbortController | null>(null)
   const streamingMessageIdRef = useRef<string | null>(null)
+  const persistTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Get current conversation object
+  const currentConversation = conversations.find((c) => c.id === currentConversationId) || null
+
+  // Load conversations on mount (if store provided)
+  useEffect(() => {
+    if (!conversationStore) return
+
+    const loadConversations = async () => {
+      setIsLoadingConversations(true)
+      try {
+        const list = await conversationStore.list()
+        setConversations(list)
+
+        // If there are conversations, select the most recent one
+        if (list.length > 0) {
+          const mostRecent = list[0] // list is sorted by updatedAt desc
+          setCurrentConversationId(mostRecent.id)
+          setMessages(mostRecent.messages)
+        }
+      } finally {
+        setIsLoadingConversations(false)
+      }
+    }
+
+    loadConversations()
+  }, [conversationStore])
+
+  // Auto-persist messages when they change (debounced)
+  useEffect(() => {
+    if (!conversationStore || !currentConversationId) return
+    // Don't persist while streaming
+    if (streamingMessageIdRef.current) return
+
+    // Clear existing timeout
+    if (persistTimeoutRef.current) {
+      clearTimeout(persistTimeoutRef.current)
+    }
+
+    // Debounce persistence to avoid excessive writes
+    persistTimeoutRef.current = setTimeout(async () => {
+      try {
+        // Auto-generate title from first user message
+        let title: string | undefined
+        if (autoTitle && messages.length > 0) {
+          const firstUserMessage = messages.find((m) => m.role === 'user')
+          if (firstUserMessage) {
+            title = firstUserMessage.content.slice(0, maxTitleLength)
+            if (firstUserMessage.content.length > maxTitleLength) {
+              title += '...'
+            }
+          }
+        }
+
+        const updated = await conversationStore.update(currentConversationId, {
+          messages,
+          ...(title ? { title } : {}),
+        })
+
+        setConversations((prev) =>
+          prev.map((c) => (c.id === currentConversationId ? updated : c))
+        )
+      } catch (error) {
+        console.error('Failed to persist conversation:', error)
+      }
+    }, 300)
+
+    return () => {
+      if (persistTimeoutRef.current) {
+        clearTimeout(persistTimeoutRef.current)
+      }
+    }
+  }, [conversationStore, currentConversationId, messages, autoTitle, maxTitleLength])
 
   const addMessage = useCallback((message: ChatMessage) => {
     setMessages((prev) => [...prev, message])
@@ -338,6 +454,81 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     [pendingApproval, addMessage, adapter, sendMessage]
   )
 
+  // ============ Conversation Management Methods ============
+
+  const createConversation = useCallback(
+    async (title?: string): Promise<Conversation | null> => {
+      if (!conversationStore) return null
+
+      const conversation = await conversationStore.create(title)
+      setConversations((prev) => [conversation, ...prev])
+      setCurrentConversationId(conversation.id)
+      // Clear messages for new conversation
+      setMessages([])
+      setTasks([])
+      setPendingQuestion(null)
+      setPendingApproval(null)
+      setDiffs([])
+      setArtifacts([])
+      setThinkingText('')
+      streamingMessageIdRef.current = null
+      return conversation
+    },
+    [conversationStore]
+  )
+
+  const selectConversation = useCallback(
+    async (id: string): Promise<void> => {
+      if (!conversationStore) return
+
+      const conversation = await conversationStore.get(id)
+      if (conversation) {
+        setCurrentConversationId(id)
+        setMessages(conversation.messages)
+        // Reset transient state
+        setTasks([])
+        setPendingQuestion(null)
+        setPendingApproval(null)
+        setDiffs([])
+        setArtifacts([])
+        setThinkingText('')
+        streamingMessageIdRef.current = null
+      }
+    },
+    [conversationStore]
+  )
+
+  const renameConversation = useCallback(
+    async (id: string, title: string): Promise<void> => {
+      if (!conversationStore) return
+
+      const updated = await conversationStore.update(id, { title })
+      setConversations((prev) => prev.map((c) => (c.id === id ? updated : c)))
+    },
+    [conversationStore]
+  )
+
+  const deleteConversation = useCallback(
+    async (id: string): Promise<void> => {
+      if (!conversationStore) return
+
+      await conversationStore.delete(id)
+      setConversations((prev) => prev.filter((c) => c.id !== id))
+
+      // If deleting current conversation, switch to another or clear
+      if (currentConversationId === id) {
+        const remaining = conversations.filter((c) => c.id !== id)
+        if (remaining.length > 0) {
+          await selectConversation(remaining[0].id)
+        } else {
+          setCurrentConversationId(null)
+          setMessages([])
+        }
+      }
+    },
+    [conversationStore, currentConversationId, conversations, selectConversation]
+  )
+
   return {
     messages,
     isProcessing,
@@ -359,5 +550,14 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     setArtifacts,
     clearMessages,
     setMessages: replaceMessages,
+
+    // Conversation management
+    conversations,
+    currentConversation,
+    isLoadingConversations,
+    createConversation,
+    selectConversation,
+    renameConversation,
+    deleteConversation,
   }
 }

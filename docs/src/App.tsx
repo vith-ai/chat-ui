@@ -28,6 +28,7 @@ import clsx from 'clsx'
 import {
   ChatContainer,
   useChat,
+  createLocalStorageStore,
 } from '@vith-ai/chat-ui'
 import type {
   ChatMessage,
@@ -38,6 +39,7 @@ import type {
   FileChange,
   PendingQuestion,
   Artifact,
+  Conversation,
 } from '@vith-ai/chat-ui'
 // Import the library styles
 import '@vith-ai/chat-ui/styles.css'
@@ -892,39 +894,15 @@ function ArtifactPanel({ artifact, onClose }: { artifact: Artifact | null; onClo
   )
 }
 
-// Conversation type
-interface Conversation {
-  id: string
-  title: string
-  messages: DemoMessage[]
-  createdAt: number
-}
-
-const WELCOME_MESSAGE: DemoMessage = {
-  id: '0',
-  role: 'assistant',
-  content: "Welcome! This library is **built for AI agents to implement** — just point your coding assistant to [/llms.txt](/llms.txt) and it can add a chat UI to your app.\n\nTry these demos:\n\n• **\"analyze\"** → Tool calls, tasks, thinking\n• **\"code\"** → Syntax-highlighted code\n• **\"deploy\"** → Approval flow\n• **\"refactor\"** → Diff view\n• **\"configure\"** → Question cards",
-}
+// Create conversation store once (outside component to avoid recreation)
+const conversationStore = typeof window !== 'undefined'
+  ? createLocalStorageStore('chat-ui-demo-conversations')
+  : undefined
 
 function ChatDemo() {
-  // Load conversations from localStorage
-  const [conversations, setConversations] = useState<Conversation[]>(() => {
-    if (typeof window === 'undefined') return []
-    const saved = localStorage.getItem('chat-ui-conversations')
-    if (saved) {
-      try {
-        return JSON.parse(saved)
-      } catch {
-        return []
-      }
-    }
-    return []
-  })
-
-  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
   const [currentArtifact, setCurrentArtifact] = useState<Artifact | null>(null)
 
-  // Dogfood the useChat hook with mock adapter
+  // Dogfood the useChat hook with mock adapter AND integrated conversation management
   const {
     messages: chatMessages,
     isProcessing,
@@ -932,9 +910,15 @@ function ChatDemo() {
     sendMessage: sendChatMessage,
     setMessages: setChatMessages,
     stopProcessing,
+    // Integrated conversation management - no manual wiring needed!
+    conversations,
+    currentConversation,
+    createConversation,
+    selectConversation,
+    deleteConversation: deleteConv,
   } = useChat({
     adapter: mockAdapter,
-    initialMessages: [],
+    conversationStore,
   })
 
   // Cast messages to DemoMessage for demo-specific fields
@@ -943,22 +927,6 @@ function ChatDemo() {
   const [showArtifactPanel, setShowArtifactPanel] = useState(true)
   const [showConversationList, setShowConversationList] = useState(false)
   const conversationDropdownRef = useRef<HTMLDivElement>(null)
-
-  // Save conversations to localStorage
-  useEffect(() => {
-    localStorage.setItem('chat-ui-conversations', JSON.stringify(conversations))
-  }, [conversations])
-
-  // Save current conversation when messages change
-  useEffect(() => {
-    if (currentConversationId && messages.length > 1) {
-      setConversations(prev => prev.map(conv =>
-        conv.id === currentConversationId
-          ? { ...conv, messages }
-          : conv
-      ))
-    }
-  }, [messages, currentConversationId])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -973,28 +941,21 @@ function ChatDemo() {
     }
   }, [showConversationList])
 
-  const createNewConversation = () => {
-    // Start fresh with no conversation ID - it will be created on first message
-    setCurrentConversationId(null)
-    setMessages([])
+  const createNewConversation = async () => {
+    await createConversation()
     setCurrentArtifact(null)
     setShowConversationList(false)
   }
 
-  const loadConversation = (conv: Conversation) => {
-    setCurrentConversationId(conv.id)
-    setMessages(conv.messages)
+  const loadConversation = async (conv: Conversation) => {
+    await selectConversation(conv.id)
     setCurrentArtifact(null)
     setShowConversationList(false)
   }
 
-  const deleteConversation = (convId: string, e: React.MouseEvent) => {
+  const deleteConversation = async (convId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    setConversations(prev => prev.filter(c => c.id !== convId))
-    if (currentConversationId === convId) {
-      setCurrentConversationId(null)
-      setMessages([WELCOME_MESSAGE])
-    }
+    await deleteConv(convId)
   }
 
   const handleApproval = (messageId: string, approved: boolean) => {
@@ -1034,23 +995,10 @@ function ChatDemo() {
   const handleSend = async (messageText: string) => {
     if (!messageText.trim() || isProcessing) return
 
-    // Create a new conversation if this is the first user message
-    if (!currentConversationId) {
-      const newConv: Conversation = {
-        id: Date.now().toString(),
-        title: messageText.slice(0, 30) + (messageText.length > 30 ? '...' : ''),
-        messages: [...messages],
-        createdAt: Date.now(),
-      }
-      setConversations(prev => [newConv, ...prev])
-      setCurrentConversationId(newConv.id)
-    } else {
-      // Update conversation title if it's still "New Chat"
-      setConversations(prev => prev.map(conv =>
-        conv.id === currentConversationId && conv.title === 'New Chat'
-          ? { ...conv, title: messageText.slice(0, 30) + (messageText.length > 30 ? '...' : '') }
-          : conv
-      ))
+    // Create a new conversation if none exists
+    // The conversationStore auto-persists messages and auto-generates titles
+    if (!currentConversation) {
+      await createConversation()
     }
 
     // Use the mock adapter via useChat - this dogfoods the library
@@ -1145,9 +1093,7 @@ function ChatDemo() {
             >
               <MessageSquare className="w-4 h-4" style={{ color: 'var(--chat-text-secondary)' }} />
               <span className="max-w-[150px] truncate">
-                {currentConversationId
-                  ? conversations.find(c => c.id === currentConversationId)?.title || 'Chat'
-                  : 'New Chat'}
+                {currentConversation?.title || 'New Chat'}
               </span>
               <ChevronDown className="w-3 h-3" style={{ color: 'var(--chat-text-secondary)' }} />
             </button>
@@ -1178,7 +1124,7 @@ function ChatDemo() {
                         onClick={() => loadConversation(conv)}
                         className={clsx(
                           'flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors group',
-                          conv.id === currentConversationId ? 'bg-accent/10' : 'hover:bg-surface-border/50'
+                          conv.id === currentConversation?.id ? 'bg-accent/10' : 'hover:bg-surface-border/50'
                         )}
                       >
                         <MessageSquare className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--chat-text-secondary)' }} />
