@@ -40,7 +40,7 @@ export interface BedrockConfig extends ProviderConfig {
 
 // Type definitions for AWS SDK (user must install @aws-sdk/client-bedrock-runtime)
 interface BedrockClient {
-  send(command: unknown): Promise<BedrockStreamResponse>
+  send(command: unknown, options?: { abortSignal?: AbortSignal }): Promise<BedrockStreamResponse>
 }
 
 interface BedrockStreamResponse {
@@ -171,14 +171,8 @@ export function createBedrockAdapter(config: BedrockConfig = {}): ChatAdapter {
         accept: 'application/json',
       })
 
-      // Handle abort signal
-      if (signal) {
-        signal.addEventListener('abort', () => {
-          // Note: AWS SDK has its own abort handling
-        })
-      }
-
-      const response = await client.send(command)
+      // AWS SDK v3 accepts abort signal in the send options
+      const response = await client.send(command, signal ? { abortSignal: signal } : undefined)
 
       let content = ''
       let thinking = ''

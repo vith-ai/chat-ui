@@ -158,6 +158,19 @@ export interface ProviderConfig {
   timeout?: number
 }
 
+/** Tool result from execution */
+export interface ToolResult {
+  /** Tool call ID this result is for */
+  toolCallId: string
+  /** Result content (will be stringified if object) */
+  result: unknown
+  /** Whether the tool execution failed */
+  isError?: boolean
+}
+
+/** Tool executor function - called to execute a tool and return its result */
+export type ToolExecutor = (toolCall: ToolCall) => Promise<ToolResult>
+
 /** Options passed to adapter.sendMessage() - callbacks for all agentic features */
 export interface SendMessageOptions {
   /** Called when streaming text content */
@@ -166,6 +179,11 @@ export interface SendMessageOptions {
   onThinking?: (thinking: string) => void
   /** Called when a tool call is made or updated */
   onToolCall?: (toolCall: ToolCall) => void
+  /**
+   * Tool executor - if provided, adapter will execute tools and loop until done.
+   * Without this, adapter returns after first response (manual tool handling).
+   */
+  toolExecutor?: ToolExecutor
   /** Called when the assistant asks a question requiring user input */
   onQuestion?: (question: PendingQuestion) => void
   /** Called when the assistant requests approval for an action */
@@ -178,6 +196,8 @@ export interface SendMessageOptions {
   onArtifact?: (artifact: Artifact) => void
   /** AbortSignal for cancellation */
   signal?: AbortSignal
+  /** Maximum tool execution iterations (default: 10, prevents infinite loops) */
+  maxIterations?: number
 }
 
 // Adapter interface that all providers implement
