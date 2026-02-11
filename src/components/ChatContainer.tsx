@@ -323,37 +323,74 @@ export function ChatContainer({
           </div>
         ) : (
           <div className={clsx('py-4', centered && 'max-w-3xl mx-auto')}>
-            {messages.map((message) => (
-              <MessageBubble
-                key={message.id}
-                message={message}
-                assistantAvatar={assistantAvatar}
-                userAvatar={userAvatar}
-                renderToolCalls={
-                  message.toolCalls?.length ? () => renderToolCalls(message.toolCalls!) : undefined
-                }
-              />
-            ))}
+            {/* Render messages - but for the streaming message, show thinking/tasks first */}
+            {messages.map((message, index) => {
+              const isLastMessage = index === messages.length - 1
+              const isStreamingMessage = isLastMessage && isProcessing && message.role === 'assistant'
 
-            {/* Thinking box */}
-            {thinkingText && (
-              <div className="px-4 py-2">
-                <ThinkingBox
-                  thinking={thinkingText}
-                  isStreaming={isProcessing}
-                  defaultCollapsed={false}
-                />
-              </div>
-            )}
+              return (
+                <div key={message.id}>
+                  {/* For non-streaming messages, render normally */}
+                  {!isStreamingMessage && (
+                    <MessageBubble
+                      message={message}
+                      assistantAvatar={assistantAvatar}
+                      userAvatar={userAvatar}
+                      renderToolCalls={
+                        message.toolCalls?.length ? () => renderToolCalls(message.toolCalls!) : undefined
+                      }
+                    />
+                  )}
 
-            {/* Tasks */}
-            {tasks && tasks.length > 0 && (
-              <div className="px-4 py-2">
-                <TodoBox tasks={tasks} />
-              </div>
-            )}
+                  {/* For streaming message, render thinking/tasks FIRST, then message */}
+                  {isStreamingMessage && (
+                    <>
+                      {/* Processing indicator */}
+                      {!thinkingText && !message.toolCalls?.length && (
+                        <div className="flex items-center gap-2 px-4 py-3 text-[var(--chat-text-secondary)]">
+                          <Loader2 className="w-4 h-4 chat-animate-spin" />
+                          <span className="text-sm">Thinking...</span>
+                        </div>
+                      )}
 
-            {/* Pending question */}
+                      {/* Thinking box */}
+                      {thinkingText && (
+                        <div className="px-4 py-2">
+                          <ThinkingBox
+                            thinking={thinkingText}
+                            isStreaming={true}
+                            defaultCollapsed={false}
+                          />
+                        </div>
+                      )}
+
+                      {/* Tool calls */}
+                      {message.toolCalls?.length ? (
+                        <div className="px-4 py-2">
+                          {renderToolCalls(message.toolCalls)}
+                        </div>
+                      ) : null}
+
+                      {/* Tasks */}
+                      {tasks && tasks.length > 0 && (
+                        <div className="px-4 py-2">
+                          <TodoBox tasks={tasks} />
+                        </div>
+                      )}
+
+                      {/* The message content (last) */}
+                      <MessageBubble
+                        message={message}
+                        assistantAvatar={assistantAvatar}
+                        userAvatar={userAvatar}
+                      />
+                    </>
+                  )}
+                </div>
+              )
+            })}
+
+            {/* Pending question (shown after all messages) */}
             {pendingQuestion && (
               <div className="px-4 py-2">
                 <QuestionCard
@@ -361,14 +398,6 @@ export function ChatContainer({
                   onAnswer={onAnswerQuestion}
                   disabled={isProcessing}
                 />
-              </div>
-            )}
-
-            {/* Processing indicator */}
-            {isProcessing && !thinkingText && (
-              <div className="flex items-center gap-2 px-4 py-3 text-[var(--chat-text-secondary)]">
-                <Loader2 className="w-4 h-4 chat-animate-spin" />
-                <span className="text-sm">Thinking...</span>
               </div>
             )}
 
