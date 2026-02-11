@@ -22,13 +22,7 @@ Beautiful, model-agnostic React components for building agentic chat interfaces.
 
 ## Installation
 
-```bash
-npm install @vith-ai/chat-ui
-# or
-pnpm add @vith-ai/chat-ui
-# or
-yarn add @vith-ai/chat-ui
-```
+> **Coming soon to npm.** For now, clone the repo or copy the source directly.
 
 ## Quick Start
 
