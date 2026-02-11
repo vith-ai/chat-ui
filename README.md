@@ -916,7 +916,7 @@ Note: The adapter handles the full tool execution loop internally. When a tool c
 
 ## Contributing
 
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details.
+Contributions welcome! Open an issue or PR on [GitHub](https://github.com/vith-ai/chat-ui).
 
 ## License
 
