@@ -24,6 +24,18 @@ import type { ArtifactType } from '../types'
 /** Layout options for empty state */
 export type EmptyStateLayout = 'default' | 'top-input'
 
+/** Simple tool configuration for label + icon customization */
+export interface ToolConfig {
+  /** Display label (defaults to tool name) */
+  label?: string
+  /** Custom icon */
+  icon?: React.ReactNode
+  /** Custom input renderer */
+  renderInput?: (input: Record<string, unknown>) => React.ReactNode
+  /** Custom output renderer */
+  renderOutput?: (output: unknown) => React.ReactNode
+}
+
 export interface ChatContainerProps {
   /** List of messages to display */
   messages: ChatMessage[]
@@ -55,7 +67,13 @@ export interface ChatContainerProps {
   onAnswerQuestion?: (answer: string | string[]) => void
   /** Called when user responds to an approval request */
   onAnswerApproval?: (approved: boolean) => void
-  /** Custom tool call renderers */
+  /**
+   * Simple tool configuration for customizing label, icon, and renderers.
+   * Uses the built-in ToolCallCard with your customizations.
+   * For full control, use toolRenderers instead.
+   */
+  toolConfig?: Record<string, ToolConfig>
+  /** Custom tool call renderers (full control - overrides toolConfig) */
   toolRenderers?: Record<string, (toolCall: ToolCall) => React.ReactNode>
   /** Custom theme */
   theme?: ChatTheme
@@ -115,6 +133,7 @@ export function ChatContainer({
   onStop,
   onAnswerQuestion,
   onAnswerApproval,
+  toolConfig,
   toolRenderers,
   theme,
   placeholder = 'Type a message...',
@@ -196,13 +215,27 @@ export function ChatContainer({
   const renderToolCalls = (toolCalls: ToolCall[]) => {
     return (
       <div className="space-y-2">
-        {toolCalls.map((tc) =>
-          toolRenderers?.[tc.name] ? (
-            <div key={tc.id}>{toolRenderers[tc.name](tc)}</div>
-          ) : (
-            <ToolCallCard key={tc.id} toolCall={tc} />
+        {toolCalls.map((tc) => {
+          // Full custom renderer takes priority
+          if (toolRenderers?.[tc.name]) {
+            return <div key={tc.id}>{toolRenderers[tc.name](tc)}</div>
+          }
+          // Simple config uses built-in ToolCallCard with customizations
+          const config = toolConfig?.[tc.name]
+          // Apply label override to toolCall if configured
+          const displayToolCall = config?.label
+            ? { ...tc, name: config.label }
+            : tc
+          return (
+            <ToolCallCard
+              key={tc.id}
+              toolCall={displayToolCall}
+              icon={config?.icon}
+              renderInput={config?.renderInput}
+              renderOutput={config?.renderOutput}
+            />
           )
-        )}
+        })}
       </div>
     )
   }

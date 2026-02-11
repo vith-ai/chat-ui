@@ -20,7 +20,7 @@ export { QuestionCard } from './QuestionCard'
 export type { QuestionCardProps } from './QuestionCard'
 
 export { ChatContainer } from './ChatContainer'
-export type { ChatContainerProps, EmptyStateLayout } from './ChatContainer'
+export type { ChatContainerProps, EmptyStateLayout, ToolConfig } from './ChatContainer'
 
 export { ArtifactPanel } from './ArtifactPanel'
 export type { ArtifactPanelProps } from './ArtifactPanel'

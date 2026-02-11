@@ -273,10 +273,6 @@ The main container that combines all chat elements:
   onAnswerQuestion={(answer) => answerQuestion(answer)}
 
   // Optional - customization
-  toolRenderers={{
-    'search': (toolCall) => <SearchResults {...toolCall} />,
-    'run_code': (toolCall) => <CodeOutput {...toolCall} />,
-  }}
   assistantAvatar={<BotIcon />}
   userAvatar={<UserIcon />}
   welcomeMessage={<WelcomeScreen />}
@@ -326,6 +322,55 @@ Control how the chat appears when there are no messages. Use `emptyStateLayout="
       </div>
     </div>
   }
+/>
+```
+
+#### Customizing Tool Cards
+
+The built-in `ToolCallCard` displays tool calls with expandable input/output, status icons, and duration. Customize it in two ways:
+
+**Simple: Use `toolConfig`** for label, icon, and custom renderers while keeping the built-in expandable card:
+
+```tsx
+import { Search, Database } from 'lucide-react'
+
+<ChatContainer
+  messages={messages}
+  onSend={handleSend}
+  toolConfig={{
+    search_accounts: {
+      label: 'Searching accounts',  // Display name (instead of "search_accounts")
+      icon: <Search className="w-4 h-4 text-blue-500" />,
+    },
+    query_database: {
+      label: 'Running query',
+      icon: <Database className="w-4 h-4 text-green-500" />,
+      renderOutput: (output) => <QueryResults data={output} />,  // Custom output display
+    },
+  }}
+/>
+```
+
+**Full control: Use `toolRenderers`** to completely replace the card:
+
+```tsx
+import { ToolCallCard } from '@vith-ai/chat-ui'
+
+<ChatContainer
+  messages={messages}
+  onSend={handleSend}
+  toolRenderers={{
+    // Use ToolCallCard as a building block with custom props
+    search: (tc) => (
+      <ToolCallCard
+        toolCall={{ ...tc, name: 'Searching...' }}
+        icon={<SearchIcon />}
+        renderOutput={(output) => <SearchResults data={output} />}
+      />
+    ),
+    // Or build something completely custom
+    run_code: (tc) => <CodeExecutionPanel toolCall={tc} />,
+  }}
 />
 ```
 
