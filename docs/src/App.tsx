@@ -36,6 +36,7 @@ import {
   ApprovalCard,
   DiffView,
   QuestionCard,
+  ArtifactPanel as LibraryArtifactPanel,
 } from '@vith-ai/chat-ui'
 import type {
   ChatMessage,
@@ -44,11 +45,12 @@ import type {
   ApprovalRequest,
   FileChange,
   PendingQuestion,
+  Artifact,
 } from '@vith-ai/chat-ui'
 // Import the library styles
 import '@vith-ai/chat-ui/styles.css'
 
-// Extended message type for demo (adds artifact support which library doesn't have built-in)
+// Extended message type for demo
 interface DemoMessage extends Omit<ChatMessage, 'toolCalls'> {
   toolCalls?: ToolCall[]
   tasks?: TaskItem[]
@@ -56,15 +58,6 @@ interface DemoMessage extends Omit<ChatMessage, 'toolCalls'> {
   approval?: ApprovalRequest
   question?: PendingQuestion
   diff?: FileChange
-}
-
-// Artifact type for the demo (library has ArtifactRegistry but no built-in panel)
-interface Artifact {
-  id: string
-  type: 'code' | 'image' | 'chart' | 'table' | 'document' | 'spreadsheet' | 'pdf'
-  title: string
-  content: string
-  language?: string
 }
 
 // Demo responses - showcasing all features
@@ -593,6 +586,9 @@ function PDFViewer({ title }: { title: string }) {
   )
 }
 
+// Custom ArtifactPanel for demo - showcases rich rendering with Shiki, charts, etc.
+// The library provides a basic ArtifactPanel (LibraryArtifactPanel) that works out of the box.
+// This demo version shows how to build richer experiences on top of the library's Artifact type.
 function ArtifactPanel({ artifact, onClose }: { artifact: Artifact | null; onClose: () => void }) {
   const [copied, setCopied] = useState(false)
 

@@ -51,6 +51,9 @@ const typeIcons: Record<ArtifactType, React.ReactNode> = {
   json: <Code size={16} />,
   csv: <Table size={16} />,
   spreadsheet: <Table size={16} />,
+  chart: <Table size={16} />,
+  table: <Table size={16} />,
+  document: <FileText size={16} />,
   image: <Image size={16} />,
   html: <FileText size={16} />,
   pdf: <File size={16} />,
@@ -111,6 +114,23 @@ const builtInRenderers: Record<ArtifactType, (artifact: Artifact) => React.React
 
   // Spreadsheet: same as CSV
   spreadsheet: (artifact) => builtInRenderers.csv(artifact),
+
+  // Chart: placeholder (override with chart library)
+  chart: (artifact) => (
+    <div className="chat-artifact-markdown">
+      <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{artifact.content}</pre>
+    </div>
+  ),
+
+  // Table: same as CSV
+  table: (artifact) => builtInRenderers.csv(artifact),
+
+  // Document: plain text
+  document: (artifact) => (
+    <div className="chat-artifact-markdown">
+      <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{artifact.content}</pre>
+    </div>
+  ),
 
   // Markdown: plain text (override with react-markdown for rich rendering)
   markdown: (artifact) => (

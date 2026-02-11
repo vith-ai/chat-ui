@@ -214,7 +214,7 @@ export interface ConversationStore {
 
 // ============ Artifact System ============
 
-export type ArtifactType = 'code' | 'markdown' | 'image' | 'html' | 'csv' | 'json' | 'pdf' | 'spreadsheet' | 'custom'
+export type ArtifactType = 'code' | 'markdown' | 'image' | 'html' | 'csv' | 'json' | 'pdf' | 'spreadsheet' | 'chart' | 'table' | 'document' | 'custom'
 
 export interface Artifact {
   /** Unique identifier */
