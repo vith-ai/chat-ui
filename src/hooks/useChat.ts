@@ -402,56 +402,24 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       if (!pendingQuestion) return
 
       const answerText = Array.isArray(answer) ? answer.join(', ') : answer
-
-      // Add the answer as a user message
-      const userMessage: ChatMessage = {
-        id: generateId(),
-        role: 'user',
-        content: answerText,
-        timestamp: new Date(),
-        metadata: {
-          questionId: pendingQuestion.id,
-          isQuestionAnswer: true,
-        },
-      }
-
-      addMessage(userMessage)
       setPendingQuestion(null)
 
-      // If we have an adapter, continue the conversation
-      if (adapter) {
-        sendMessage(answerText)
-      }
+      // Just send the message - sendMessage will add the user message
+      sendMessage(answerText)
     },
-    [pendingQuestion, addMessage, adapter, sendMessage]
+    [pendingQuestion, sendMessage]
   )
 
   const answerApproval = useCallback(
     (approved: boolean) => {
       if (!pendingApproval) return
 
-      // Add the approval response as a user message
-      const userMessage: ChatMessage = {
-        id: generateId(),
-        role: 'user',
-        content: approved ? 'Approved' : 'Denied',
-        timestamp: new Date(),
-        metadata: {
-          approvalId: pendingApproval.id,
-          isApprovalResponse: true,
-          approved,
-        },
-      }
-
-      addMessage(userMessage)
       setPendingApproval(null)
 
-      // If we have an adapter, continue the conversation with the approval result
-      if (adapter) {
-        sendMessage(approved ? 'Yes, proceed' : 'No, do not proceed')
-      }
+      // Just send the message - sendMessage will add the user message
+      sendMessage(approved ? 'Approved' : 'Denied')
     },
-    [pendingApproval, addMessage, adapter, sendMessage]
+    [pendingApproval, sendMessage]
   )
 
   // ============ Conversation Management Methods ============
