@@ -1304,7 +1304,8 @@ function ChatDemo() {
               {/* Assistant messages: show thinking/tools/tasks FIRST, then the response */}
               {message.role === 'assistant' && (
                 <>
-                  {message.thinking && (
+                  {/* Don't show inline thinking if still streaming (streamingThinking shows it separately) */}
+                  {message.thinking && !(isProcessing && message.id === messages[messages.length - 1]?.id) && (
                     <div className="mx-4 mb-2">
                       <ThinkingBox thinking={message.thinking} defaultCollapsed={false} />
                     </div>
