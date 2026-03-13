@@ -19,14 +19,13 @@ import {
   Sun,
   Moon,
   MessageSquare,
-  Trash2,
-  ChevronDown,
 } from 'lucide-react'
 import clsx from 'clsx'
 
 // Import from the library
 import {
   ChatContainer,
+  TabBar,
   useChat,
   createLocalStorageStore,
 } from '@vith-ai/chat-ui'
@@ -40,7 +39,6 @@ import type {
   PendingQuestion,
   PendingPlan,
   Artifact,
-  Conversation,
 } from '@vith-ai/chat-ui'
 // Import the library styles
 import '@vith-ai/chat-ui/styles.css'
@@ -941,6 +939,8 @@ function ChatDemo() {
     messages: chatMessages,
     isProcessing,
     thinkingText: streamingThinking,
+    thinkingDuration,
+    agentStatus,
     sendMessage: sendChatMessage,
     setMessages: setChatMessages,
     stopProcessing,
@@ -959,37 +959,10 @@ function ChatDemo() {
   const messages = chatMessages as DemoMessage[]
   const setMessages = setChatMessages as React.Dispatch<React.SetStateAction<DemoMessage[]>>
   const [showArtifactPanel, setShowArtifactPanel] = useState(true)
-  const [showConversationList, setShowConversationList] = useState(false)
-  const conversationDropdownRef = useRef<HTMLDivElement>(null)
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (conversationDropdownRef.current && !conversationDropdownRef.current.contains(e.target as Node)) {
-        setShowConversationList(false)
-      }
-    }
-    if (showConversationList) {
-      document.addEventListener('mousedown', handleClickOutside)
-      return () => document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [showConversationList])
 
   const createNewConversation = async () => {
     await createConversation()
     setCurrentArtifact(null)
-    setShowConversationList(false)
-  }
-
-  const loadConversation = async (conv: Conversation) => {
-    await selectConversation(conv.id)
-    setCurrentArtifact(null)
-    setShowConversationList(false)
-  }
-
-  const deleteConversation = async (convId: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    await deleteConv(convId)
   }
 
   const handleApproval = (messageId: string, approved: boolean) => {
@@ -1149,69 +1122,26 @@ function ChatDemo() {
         className="flex flex-col min-w-0"
         style={showArtifactPanel ? { flex: '0 0 40%', minWidth: '320px' } : { flex: 1 }}
       >
-        {/* Conversation Header */}
-        <div className="flex items-center justify-between px-3 py-2 border-b border-surface-border">
-          <div className="relative" ref={conversationDropdownRef}>
-            <button
-              onClick={() => setShowConversationList(!showConversationList)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-surface-elevated transition-colors text-sm"
-              style={{ color: 'var(--chat-text)' }}
-            >
-              <MessageSquare className="w-4 h-4" style={{ color: 'var(--chat-text-secondary)' }} />
-              <span className="max-w-[150px] truncate">
-                {currentConversation?.title || 'New Chat'}
-              </span>
-              <ChevronDown className="w-3 h-3" style={{ color: 'var(--chat-text-secondary)' }} />
-            </button>
-
-            {/* Conversation dropdown */}
-            {showConversationList && (
-              <div
-                className="absolute top-full left-0 mt-1 w-64 rounded-lg border border-surface-border bg-surface-elevated shadow-xl z-50 overflow-hidden"
-              >
-                <div className="p-2 border-b border-surface-border">
-                  <button
-                    onClick={createNewConversation}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-accent/10 transition-colors text-sm text-accent"
-                  >
-                    <Plus className="w-4 h-4" />
-                    New Conversation
-                  </button>
-                </div>
-                <div className="max-h-64 overflow-y-auto">
-                  {conversations.length === 0 ? (
-                    <div className="px-3 py-4 text-center text-sm" style={{ color: 'var(--chat-text-secondary)' }}>
-                      No saved conversations
-                    </div>
-                  ) : (
-                    conversations.map(conv => (
-                      <div
-                        key={conv.id}
-                        onClick={() => loadConversation(conv)}
-                        className={clsx(
-                          'flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors group',
-                          conv.id === currentConversation?.id ? 'bg-accent/10' : 'hover:bg-surface-border/50'
-                        )}
-                      >
-                        <MessageSquare className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--chat-text-secondary)' }} />
-                        <span className="flex-1 truncate text-sm" style={{ color: 'var(--chat-text)' }}>
-                          {conv.title}
-                        </span>
-                        <button
-                          onClick={(e) => deleteConversation(conv.id, e)}
-                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/20 transition-all"
-                        >
-                          <Trash2 className="w-3 h-3 text-red-400" />
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
+        {/* Tab Bar - using the library's TabBar component */}
+        <div className="flex items-center border-b border-surface-border">
+          <div className="flex-1 min-w-0">
+            <TabBar
+              tabs={conversations.length > 0
+                ? conversations.map(conv => ({
+                    id: conv.id,
+                    label: conv.title || 'New Chat',
+                    status: (conv.id === currentConversation?.id && isProcessing) ? 'running' as const : 'idle' as const,
+                  }))
+                : [{ id: 'default', label: currentConversation?.title || 'New Chat', status: isProcessing ? 'running' as const : 'idle' as const }]
+              }
+              activeTabId={currentConversation?.id || 'default'}
+              onSelectTab={(tabId) => selectConversation(tabId)}
+              onCloseTab={(tabId) => deleteConv(tabId)}
+              onNewTab={createNewConversation}
+              maxTabs={5}
+            />
           </div>
-
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 px-2">
             {/* Artifact panel toggle */}
             <button
               onClick={() => setShowArtifactPanel(!showArtifactPanel)}
@@ -1228,13 +1158,6 @@ function ChatDemo() {
             >
               <PanelRight className="w-4 h-4" />
             </button>
-            <button
-              onClick={createNewConversation}
-              className="p-2 rounded-lg hover:bg-surface-elevated transition-colors"
-              title="New conversation"
-            >
-              <Plus className="w-4 h-4" style={{ color: 'var(--chat-text-secondary)' }} />
-            </button>
           </div>
         </div>
 
@@ -1243,8 +1166,8 @@ function ChatDemo() {
           messages={messages}
           isProcessing={isProcessing}
           thinkingText={streamingThinking}
-          thinkingDuration={3}
-          agentStatus={isProcessing ? undefined : null}
+          thinkingDuration={thinkingDuration ?? undefined}
+          agentStatus={agentStatus}
           tasks={currentTasks}
           pendingQuestion={pendingQuestion}
           pendingApproval={pendingApproval}
