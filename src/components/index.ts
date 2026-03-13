@@ -19,6 +19,15 @@ export type { DiffViewProps } from './DiffView'
 export { QuestionCard } from './QuestionCard'
 export type { QuestionCardProps } from './QuestionCard'
 
+export { PlanCard } from './PlanCard'
+export type { PlanCardProps } from './PlanCard'
+
+export { AgentStatusSpinner } from './AgentStatusSpinner'
+export type { AgentStatusSpinnerProps } from './AgentStatusSpinner'
+
+export { TabBar } from './TabBar'
+export type { TabBarProps, Tab } from './TabBar'
+
 export { ChatContainer } from './ChatContainer'
 export type { ChatContainerProps, EmptyStateLayout, ToolConfig } from './ChatContainer'
 

@@ -7,6 +7,9 @@ export {
   ApprovalCard,
   DiffView,
   QuestionCard,
+  PlanCard,
+  AgentStatusSpinner,
+  TabBar,
   ChatContainer,
   ArtifactPanel,
 } from './components'
@@ -19,6 +22,10 @@ export type {
   ApprovalCardProps,
   DiffViewProps,
   QuestionCardProps,
+  PlanCardProps,
+  AgentStatusSpinnerProps,
+  TabBarProps,
+  Tab,
   ChatContainerProps,
   EmptyStateLayout,
   ArtifactPanelProps,
@@ -40,9 +47,18 @@ export type {
   FileChange,
   PendingQuestion,
   QuestionOption,
+  // Plan types
+  PendingPlan,
+  PlanStep,
+  PlanResponse,
+  // Tab types
+  TabState,
+  TabStatus,
+  // Theme & config
   ChatTheme,
   ProviderConfig,
   ChatAdapter,
+  StreamingState,
   // Conversation management
   Conversation,
   ConversationStore,
@@ -61,10 +77,14 @@ export type {
 export { useChat } from './hooks/useChat'
 export type { UseChatOptions, UseChatReturn } from './hooks/useChat'
 
+export { useTabChat } from './hooks/useTabChat'
+export type { UseTabChatOptions, UseTabChatReturn } from './hooks/useTabChat'
+
 export {
   useConversations,
   createLocalStorageStore,
   createMemoryStore,
+  createApiStore,
 } from './hooks/useConversations'
 export type { UseConversationsOptions, UseConversationsReturn } from './hooks/useConversations'
 

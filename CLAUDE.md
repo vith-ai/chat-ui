@@ -29,17 +29,22 @@
 │   │   └── index.ts        # Re-exports
 │   ├── components/         # React UI components
 │   │   ├── MessageBubble.tsx
-│   │   ├── ThinkingBox.tsx
+│   │   ├── ThinkingBox.tsx     # Auto-expand/collapse with duration
 │   │   ├── ToolCallCard.tsx
 │   │   ├── TodoBox.tsx
 │   │   ├── ApprovalCard.tsx
+│   │   ├── PlanCard.tsx        # Plan approval with feedback
 │   │   ├── DiffView.tsx
 │   │   ├── QuestionCard.tsx
+│   │   ├── AgentStatusSpinner.tsx  # Status with elapsed time
+│   │   ├── TabBar.tsx          # Multi-conversation tabs
 │   │   ├── ChatContainer.tsx
+│   │   ├── ArtifactPanel.tsx
 │   │   └── index.ts
 │   ├── hooks/
-│   │   ├── useChat.ts          # Main chat state management
-│   │   └── useConversations.ts # Multi-conversation management
+│   │   ├── useChat.ts          # Single conversation state
+│   │   ├── useTabChat.ts       # Multi-tab state (reducer-based)
+│   │   └── useConversations.ts # Conversation persistence
 │   ├── artifacts.ts        # Artifact registry & helpers
 │   ├── permissions.ts      # Tool permission system
 │   ├── types.ts            # All TypeScript types

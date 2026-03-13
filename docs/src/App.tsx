@@ -38,6 +38,7 @@ import type {
   ApprovalRequest,
   FileChange,
   PendingQuestion,
+  PendingPlan,
   Artifact,
   Conversation,
 } from '@vith-ai/chat-ui'
@@ -50,6 +51,7 @@ interface DemoMessage extends Omit<ChatMessage, 'toolCalls'> {
   tasks?: TaskItem[]
   approval?: ApprovalRequest
   question?: PendingQuestion
+  plan?: PendingPlan
   diff?: FileChange
 }
 
@@ -62,12 +64,13 @@ interface DemoResponse {
   artifacts?: Artifact[]
   approval?: ApprovalRequest
   question?: PendingQuestion
+  plan?: PendingPlan
   diff?: FileChange
 }
 
 const demoResponses: Record<string, DemoResponse> = {
   default: {
-    content: "This demo isn't connected to a live AI model — it's a showcase of the UI components.\n\nTo see the components in action, try one of these:\n\n• **\"analyze data\"** → Tool calls, tasks, thinking, charts\n• **\"write code\"** → Code generation with artifacts\n• **\"deploy\"** → Approval flow\n• **\"refactor\"** → Diff view\n• **\"configure\"** → Question cards\n\nWant to connect it to a real model? Check out the **Docs** to integrate with Claude, OpenAI, Ollama, or any LLM.",
+    content: "This demo isn't connected to a live AI model — it's a showcase of the UI components.\n\nTo see the components in action, try one of these:\n\n• **\"analyze data\"** → Tool calls, tasks, thinking, charts\n• **\"write code\"** → Code generation with artifacts\n• **\"plan migration\"** → Plan approval cards\n• **\"deploy\"** → Approval flow\n• **\"refactor\"** → Diff view\n• **\"configure\"** → Question cards\n\nWant to connect it to a real model? Check out the **Docs** to integrate with Claude, OpenAI, Ollama, or any LLM.",
   },
   analyze: {
     content: "I've analyzed the data and created a visualization showing the revenue trends over time.",
@@ -220,6 +223,26 @@ export async function refreshSession(token: string) {
         { label: 'Environment variables', description: 'Store in .env file (recommended)' },
         { label: 'Config file', description: 'Store in config.json' },
         { label: 'Connection string', description: 'Hardcode in source' },
+      ],
+    },
+  },
+  plan: {
+    content: "I've analyzed the migration requirements. Here's my proposed plan for the database migration.",
+    thinking: "This is a complex migration involving multiple tables and foreign key constraints. I need to propose a careful plan with rollback steps.",
+    toolCalls: [
+      { id: 't1', name: 'analyze_schema', input: { database: 'production' }, status: 'complete' },
+    ],
+    plan: {
+      id: 'migration-plan',
+      title: 'Database Migration Plan',
+      summary: 'Migrate user schema to support multi-tenancy with zero downtime.',
+      steps: [
+        { title: 'Create backup', description: 'Full database snapshot before changes', toolName: 'pg_dump' },
+        { title: 'Add tenant_id column', description: 'Add nullable column to users, orders, and sessions tables' },
+        { title: 'Backfill tenant data', description: 'Populate tenant_id from organization mapping', toolName: 'run_migration' },
+        { title: 'Add foreign key constraints', description: 'Set NOT NULL and add FK to tenants table' },
+        { title: 'Update application queries', description: 'Add tenant scoping to all database queries', toolName: 'edit_file' },
+        { title: 'Run integration tests', description: 'Verify all endpoints work with multi-tenancy', toolName: 'run_tests' },
       ],
     },
   },
@@ -397,6 +420,8 @@ function createMockAdapter(): ChatAdapter {
         responseKey = 'deploy'
       } else if (userInput.includes('refactor') || userInput.includes('diff') || userInput.includes('change')) {
         responseKey = 'refactor'
+      } else if (userInput.includes('plan') || userInput.includes('migrat') || userInput.includes('strategy')) {
+        responseKey = 'plan'
       } else if (userInput.includes('config') || userInput.includes('question') || userInput.includes('setup') || userInput.includes('database')) {
         responseKey = 'question'
       } else if (userInput.includes('help') || userInput.includes('what can') || userInput.includes('demo')) {
@@ -405,16 +430,23 @@ function createMockAdapter(): ChatAdapter {
 
       const response = demoResponses[responseKey]
 
+      // Simulate agent status
+      options?.onAgentStatus?.('Connecting...')
+      await delay(300)
+
       // Simulate tool calls
       if (response.toolCalls) {
         for (let i = 0; i < response.toolCalls.length; i++) {
           const tc = response.toolCalls[i]
+          options?.onAgentStatus?.(`Running ${tc.name}...`)
           options?.onToolCall?.({ ...tc, status: 'running' })
           await delay(600)
           options?.onToolCall?.({ ...tc, status: 'complete' })
           await delay(200)
         }
       }
+
+      options?.onAgentStatus?.('Generating response...')
 
       // Simulate thinking
       if (response.thinking) {
@@ -441,12 +473,14 @@ function createMockAdapter(): ChatAdapter {
         role: 'assistant' as const,
         content: response.content,
         thinking: response.thinking,
+        thinkingDuration: response.thinking ? 3 : undefined,
         toolCalls: response.toolCalls,
         // Demo-specific fields stored on message
         tasks: response.tasks,
         artifacts: response.artifacts,
         approval: response.approval,
         question: response.question,
+        plan: response.plan,
         diff: response.diff,
       } as DemoMessage
     },
@@ -1020,6 +1054,9 @@ function ChatDemo() {
   // Get pending approval from the last assistant message
   const pendingApproval = lastAssistantMessage?.approval
 
+  // Get pending plan from the last assistant message
+  const pendingPlan = lastAssistantMessage?.plan
+
   // Get diffs from the last assistant message (wrap in array for ChatContainer)
   const currentDiffs = lastAssistantMessage?.diff ? [lastAssistantMessage.diff] : undefined
 
@@ -1027,6 +1064,27 @@ function ChatDemo() {
   const handleAnswerApproval = (approved: boolean) => {
     if (!lastAssistantMessage?.id) return
     handleApproval(lastAssistantMessage.id, approved)
+  }
+
+  // Handle plan response
+  const handleAnswerPlan = (approved: boolean, feedback?: string) => {
+    if (!lastAssistantMessage?.id) return
+    // Remove the plan from the message
+    setMessages(prev => prev.map(msg => {
+      if (msg.id === lastAssistantMessage.id) {
+        return { ...msg, plan: undefined }
+      }
+      return msg
+    }))
+    // Add follow-up
+    const followUp: DemoMessage = {
+      id: Date.now().toString(),
+      role: 'assistant',
+      content: approved
+        ? "Plan approved! Starting execution...\n\n✓ Created backup\n✓ Added tenant_id column\n✓ Backfilled tenant data\n✓ Added constraints\n✓ Updated queries\n✓ Tests passing\n\nMigration completed successfully."
+        : `Plan revised based on your feedback: "${feedback}"\n\nI'll adjust the approach and propose an updated plan.`,
+    }
+    setTimeout(() => setMessages(prev => [...prev, followUp]), 500)
   }
 
   // Render message extras (artifact buttons) - called by ChatContainer
@@ -1185,15 +1243,20 @@ function ChatDemo() {
           messages={messages}
           isProcessing={isProcessing}
           thinkingText={streamingThinking}
+          thinkingDuration={3}
+          agentStatus={isProcessing ? undefined : null}
           tasks={currentTasks}
           pendingQuestion={pendingQuestion}
           pendingApproval={pendingApproval}
+          pendingPlan={pendingPlan}
           diffs={currentDiffs}
           onSend={handleSend}
           onStop={stopProcessing}
           onAnswerQuestion={handleAnswerQuestion}
           onAnswerApproval={handleAnswerApproval}
-          suggestions={['analyze', 'code', 'spreadsheet', 'pdf', 'search', 'build', 'image', 'deploy', 'refactor', 'configure']}
+          onAnswerPlan={handleAnswerPlan}
+          adapterFeatures={{ streaming: true, thinking: true, toolUse: true }}
+          suggestions={['analyze', 'code', 'plan', 'spreadsheet', 'pdf', 'search', 'build', 'image', 'deploy', 'refactor', 'configure']}
           emptyStateLayout="top-input"
           placeholder="Type a message..."
           welcomeMessage={welcomeMessage}

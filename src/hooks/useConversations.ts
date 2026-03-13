@@ -61,6 +61,65 @@ export function createLocalStorageStore(key = 'chat-conversations'): Conversatio
 }
 
 /**
+ * Create a REST API-backed conversation store.
+ * Expects standard CRUD endpoints at baseUrl.
+ */
+export function createApiStore(options: {
+  baseUrl: string
+  headers?: Record<string, string>
+}): ConversationStore {
+  const { baseUrl, headers = {} } = options
+  const fetchOpts = { headers: { 'Content-Type': 'application/json', ...headers } }
+
+  return {
+    async list() {
+      const res = await fetch(baseUrl, fetchOpts)
+      if (!res.ok) throw new Error(`Failed to list conversations: ${res.statusText}`)
+      const data = await res.json()
+      return data.map((c: Conversation) => ({
+        ...c,
+        createdAt: new Date(c.createdAt),
+        updatedAt: new Date(c.updatedAt),
+      }))
+    },
+
+    async get(id) {
+      const res = await fetch(`${baseUrl}/${id}`, fetchOpts)
+      if (!res.ok) return null
+      const c = await res.json()
+      return { ...c, createdAt: new Date(c.createdAt), updatedAt: new Date(c.updatedAt) }
+    },
+
+    async create(title) {
+      const res = await fetch(baseUrl, {
+        ...fetchOpts,
+        method: 'POST',
+        body: JSON.stringify({ title: title || 'New conversation' }),
+      })
+      if (!res.ok) throw new Error(`Failed to create conversation: ${res.statusText}`)
+      const c = await res.json()
+      return { ...c, createdAt: new Date(c.createdAt), updatedAt: new Date(c.updatedAt) }
+    },
+
+    async update(id, updates) {
+      const res = await fetch(`${baseUrl}/${id}`, {
+        ...fetchOpts,
+        method: 'PATCH',
+        body: JSON.stringify(updates),
+      })
+      if (!res.ok) throw new Error(`Failed to update conversation: ${res.statusText}`)
+      const c = await res.json()
+      return { ...c, createdAt: new Date(c.createdAt), updatedAt: new Date(c.updatedAt) }
+    },
+
+    async delete(id) {
+      const res = await fetch(`${baseUrl}/${id}`, { ...fetchOpts, method: 'DELETE' })
+      if (!res.ok) throw new Error(`Failed to delete conversation: ${res.statusText}`)
+    },
+  }
+}
+
+/**
  * In-memory conversation store (for testing or SSR)
  */
 export function createMemoryStore(): ConversationStore {

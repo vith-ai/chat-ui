@@ -49,6 +49,10 @@ export interface UseChatReturn {
   isProcessing: boolean
   /** Current thinking text (streaming) */
   thinkingText: string
+  /** Thinking duration in seconds */
+  thinkingDuration: number | null
+  /** Current agent status text (e.g., "Running tool_name...") */
+  agentStatus: string | null
   /** Current tasks */
   tasks: TaskItem[]
   /** Pending question from assistant */
@@ -130,6 +134,8 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
   const [isProcessing, setIsProcessing] = useState(false)
   const [thinkingText, setThinkingText] = useState('')
+  const [thinkingDuration, setThinkingDuration] = useState<number | null>(null)
+  const [agentStatus, setAgentStatus] = useState<string | null>(null)
   const [tasks, setTasks] = useState<TaskItem[]>([])
   const [pendingQuestion, setPendingQuestion] = useState<PendingQuestion | null>(null)
   const [pendingApproval, setPendingApproval] = useState<ApprovalRequest | null>(null)
@@ -145,6 +151,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   const abortControllerRef = useRef<AbortController | null>(null)
   const streamingMessageIdRef = useRef<string | null>(null)
   const persistTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const thinkingStartRef = useRef<number>(0)
   // Track pending tool approval - resolves when user approves/denies
   const pendingToolApprovalRef = useRef<{
     toolCall: ToolCall
@@ -241,6 +248,8 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     setArtifacts([])
     setError(null)
     setThinkingText('')
+    setThinkingDuration(null)
+    setAgentStatus(null)
     streamingMessageIdRef.current = null
   }, [])
 
@@ -360,8 +369,11 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
       setIsProcessing(true)
       setThinkingText('')
+      setThinkingDuration(null)
+      setAgentStatus(null)
       setError(null) // Clear previous error
       streamingMessageIdRef.current = null
+      thinkingStartRef.current = 0
       abortControllerRef.current = new AbortController()
 
       try {
@@ -378,11 +390,15 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
             }))
           },
           onThinking: (thinking) => {
+            if (!thinkingStartRef.current) thinkingStartRef.current = Date.now()
+            const duration = Math.floor((Date.now() - thinkingStartRef.current) / 1000)
             setThinkingText(thinking)
+            setThinkingDuration(duration)
             ensureStreamingMessage()
             updateStreamingMessage((msg) => ({
               ...msg,
               thinking,
+              thinkingDuration: duration,
             }))
           },
           onToolCall: (toolCall) => {
@@ -403,6 +419,9 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
               return { ...msg, toolCalls: updatedCalls }
             })
+          },
+          onAgentStatus: (status) => {
+            setAgentStatus(status)
           },
           onQuestion: (question) => {
             setPendingQuestion(question)
@@ -478,6 +497,10 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       } finally {
         setIsProcessing(false)
         setThinkingText('')
+        setAgentStatus(null)
+        if (thinkingStartRef.current) {
+          setThinkingDuration(Math.floor((Date.now() - thinkingStartRef.current) / 1000))
+        }
         streamingMessageIdRef.current = null
         abortControllerRef.current = null
       }
@@ -554,6 +577,9 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
     setIsProcessing(true)
     setThinkingText('')
+    setThinkingDuration(null)
+    setAgentStatus(null)
+    thinkingStartRef.current = 0
     streamingMessageIdRef.current = null
     abortControllerRef.current = new AbortController()
 
@@ -571,11 +597,15 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
           }))
         },
         onThinking: (thinking) => {
+          if (!thinkingStartRef.current) thinkingStartRef.current = Date.now()
+          const duration = Math.floor((Date.now() - thinkingStartRef.current) / 1000)
           setThinkingText(thinking)
+          setThinkingDuration(duration)
           ensureStreamingMessage()
           updateStreamingMessage((msg) => ({
             ...msg,
             thinking,
+            thinkingDuration: duration,
           }))
         },
         onToolCall: (toolCall) => {
@@ -594,6 +624,9 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
             return { ...msg, toolCalls: updatedCalls }
           })
+        },
+        onAgentStatus: (status) => {
+          setAgentStatus(status)
         },
         onQuestion: (question) => {
           setPendingQuestion(question)
@@ -661,6 +694,10 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     } finally {
       setIsProcessing(false)
       setThinkingText('')
+      setAgentStatus(null)
+      if (thinkingStartRef.current) {
+        setThinkingDuration(Math.floor((Date.now() - thinkingStartRef.current) / 1000))
+      }
       streamingMessageIdRef.current = null
       abortControllerRef.current = null
     }
@@ -745,6 +782,8 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     messages,
     isProcessing,
     thinkingText,
+    thinkingDuration,
+    agentStatus,
     tasks,
     pendingQuestion,
     pendingApproval,

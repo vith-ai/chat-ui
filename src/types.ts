@@ -43,6 +43,14 @@ export interface ChatMessage {
   artifacts?: Artifact[]
   /** Extended thinking/reasoning content */
   thinking?: string
+  /** Duration of thinking in seconds */
+  thinkingDuration?: number
+  /** Current agent status text (e.g., "Running analyze_data...") */
+  agentStatus?: string
+  /** Whether this message is hidden from display (e.g., context injection) */
+  hidden?: boolean
+  /** Token usage info */
+  usage?: { inputTokens: number; outputTokens: number; model?: string }
   /** Timestamp of the message */
   timestamp?: Date
   /** Optional metadata */
@@ -120,6 +128,71 @@ export interface StreamingState {
   partialThinking?: string
 }
 
+// Plan types (for agentic plan approval flows)
+export interface PlanStep {
+  /** Step title */
+  title: string
+  /** Optional description */
+  description?: string
+  /** Tool to be used (if any) */
+  toolName?: string
+}
+
+export interface PendingPlan {
+  /** Unique identifier */
+  id: string
+  /** Plan title */
+  title: string
+  /** Plan summary */
+  summary: string
+  /** Ordered steps */
+  steps: PlanStep[]
+}
+
+export type PlanResponse =
+  | { approved: true }
+  | { approved: false; feedback?: string }
+
+// Tab types (for multi-conversation tab management)
+export type TabStatus = 'idle' | 'running' | 'needs_input' | 'done'
+
+export interface TabState {
+  /** Unique tab identifier */
+  id: string
+  /** Display label */
+  label: string
+  /** Current tab status (computed from state) */
+  status: TabStatus
+  /** Messages in this tab */
+  messages: ChatMessage[]
+  /** Associated conversation ID (if persisted) */
+  conversationId: string | null
+  /** Whether the agent is actively processing */
+  isProcessing: boolean
+  /** Pending approval requests */
+  pendingApprovals: ApprovalRequest[]
+  /** Pending questions */
+  pendingQuestions: PendingQuestion[]
+  /** Pending plans */
+  pendingPlans: PendingPlan[]
+  /** Current thinking text */
+  thinkingText: string
+  /** Thinking duration in seconds */
+  thinkingDuration: number | null
+  /** Current agent status text (e.g., "Running tool_name...") */
+  agentStatus: string | null
+  /** Current tasks */
+  tasks: TaskItem[]
+  /** File diffs */
+  diffs: FileChange[]
+  /** Artifacts */
+  artifacts: Artifact[]
+  /** Current error */
+  error: Error | null
+  /** Whether this tab completed while user was on another tab */
+  completedInBackground: boolean
+}
+
 // Theme configuration
 export interface ChatTheme {
   /** Background color */
@@ -194,6 +267,10 @@ export interface SendMessageOptions {
   onDiff?: (diff: FileChange) => void
   /** Called when an artifact is created */
   onArtifact?: (artifact: Artifact) => void
+  /** Called when the agent status changes (e.g., "Calling API...", "Running tool_name...") */
+  onAgentStatus?: (status: string) => void
+  /** Called when the assistant proposes a plan requiring approval */
+  onPlan?: (plan: PendingPlan) => void
   /** AbortSignal for cancellation */
   signal?: AbortSignal
   /** Maximum tool execution iterations (default: 10, prevents infinite loops) */

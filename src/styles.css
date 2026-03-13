@@ -51,8 +51,17 @@
   animation: chat-spin 1s linear infinite;
 }
 
+@keyframes chat-tab-attention {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 .chat-animate-fade-in {
   animation: chat-fade-in 0.2s ease-out;
+}
+
+.chat-tab-attention {
+  animation: chat-tab-attention 1.5s ease-in-out infinite;
 }
 
 /* Scrollbar styling */
